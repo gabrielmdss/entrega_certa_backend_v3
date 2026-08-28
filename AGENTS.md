@@ -1002,3 +1002,1290 @@ infrastructure/database/postgres/beneficiarios
 presentation/http/beneficiarios
 
 Essa estrutura deve ser usada como padrão para os demais contextos.
+
+# Configuração e bootstrap técnico do projeto
+
+## 1. Objetivo
+
+Além da arquitetura de domínio definida neste documento, o projeto deve possuir uma fundação técnica padronizada e previsível.
+
+O Codex não deve escolher arbitrariamente bibliotecas, estrutura de configuração ou estratégia de conexão ao banco quando estas diretrizes já definirem a solução.
+
+Antes de implementar módulos de negócio, configurar:
+
+```text
+Node.js
+TypeScript
+HTTP server
+variáveis de ambiente
+PostgreSQL
+logger
+tratamento global de erros
+JWT
+RBAC
+CORS
+Swagger/OpenAPI
+storage
+testes
+graceful shutdown
+health/readiness
+```
+
+---
+
+# 2. Runtime e stack base
+
+Utilizar:
+
+```text
+Node.js LTS
+TypeScript
+Express
+PostgreSQL
+pg
+Zod
+JWT
+bcrypt ou argon2
+Vitest
+ESLint
+tsx para desenvolvimento
+```
+
+Não adicionar ORM por padrão.
+
+O banco já possui:
+
+- schema definido;
+- constraints;
+- views;
+- funções;
+- regras transacionais;
+- SQL validado.
+
+Portanto, utilizar `pg` diretamente, encapsulado pela camada `infrastructure`.
+
+Se durante a implementação houver justificativa concreta para query builder ou outra biblioteca, documentar a decisão antes de introduzi-la.
+
+---
+
+# 3. Package scripts
+
+O projeto deve possuir pelo menos:
+
+```json
+{
+  "scripts": {
+    "dev": "tsx watch src/main/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run tests/integration"
+  }
+}
+```
+
+Os comandos abaixo devem funcionar antes da entrega:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+---
+
+# 4. TypeScript
+
+Utilizar TypeScript em modo estrito.
+
+Configuração mínima esperada:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "outDir": "dist",
+    "rootDir": "."
+  }
+}
+```
+
+Pode haver ajustes necessários conforme a versão efetivamente utilizada das dependências.
+
+Não desabilitar `strict` para resolver erros de tipagem.
+
+Não utilizar `any` como solução genérica.
+
+Quando um dado externo ainda não for conhecido, preferir:
+
+```ts
+unknown
+```
+
+e realizar narrowing/validação.
+
+---
+
+# 5. Variáveis de ambiente
+
+Nenhuma configuração de ambiente deve ficar hardcoded.
+
+Criar:
+
+```text
+.env
+.env.example
+```
+
+`.env` nunca deve ser versionado.
+
+`.env.example` deve ser versionado e não deve conter credenciais reais.
+
+Exemplo inicial:
+
+```env
+NODE_ENV=development
+PORT=3000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=pastoral
+DB_USER=pastoral_app
+DB_PASSWORD=change_me
+DB_SCHEMA=pastoral
+
+DB_POOL_MAX=10
+DB_CONNECTION_TIMEOUT_MS=5000
+DB_IDLE_TIMEOUT_MS=30000
+
+JWT_SECRET=change_me
+JWT_EXPIRES_IN=8h
+
+FILES_STORAGE_PATH=./storage
+
+LOG_LEVEL=info
+
+CORS_ORIGINS=http://localhost:4200
+```
+
+Não assumir que esses valores são os valores reais do ambiente.
+
+O Codex deve utilizar as credenciais/conexão fornecidas no ambiente de desenvolvimento para inspecionar o banco existente.
+
+---
+
+# 6. Validação do ambiente
+
+As variáveis devem ser validadas durante o bootstrap.
+
+Criar algo equivalente a:
+
+```text
+src/main/config.ts
+```
+
+ou:
+
+```text
+src/infrastructure/config/
+```
+
+Exemplo conceitual:
+
+```ts
+const envSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
+
+  PORT: z.coerce.number().int().positive().default(3000),
+
+  DB_HOST: z.string().min(1),
+  DB_PORT: z.coerce.number().int().positive(),
+  DB_NAME: z.string().min(1),
+  DB_USER: z.string().min(1),
+  DB_PASSWORD: z.string(),
+  DB_SCHEMA: z.string().default('pastoral'),
+
+  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+  DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  DB_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+
+  JWT_SECRET: z.string().min(32),
+  JWT_EXPIRES_IN: z.string().default('8h'),
+
+  FILES_STORAGE_PATH: z.string().default('./storage'),
+
+  LOG_LEVEL: z.string().default('info'),
+
+  CORS_ORIGINS: z.string().default('http://localhost:4200'),
+});
+```
+
+A aplicação deve falhar imediatamente no startup quando uma configuração obrigatória estiver ausente ou inválida.
+
+Não permitir que erros de configuração apareçam somente na primeira requisição.
+
+---
+
+# 7. Configuração PostgreSQL
+
+Utilizar pool de conexões.
+
+Estrutura sugerida:
+
+```text
+src/infrastructure/database/postgres/
+├── connection/
+│   ├── postgres.connection.ts
+│   ├── postgres.transaction.ts
+│   └── postgres.types.ts
+│
+├── beneficiarios/
+├── atendimento/
+├── estoque/
+└── ...
+```
+
+Exemplo conceitual:
+
+```ts
+import { Pool } from 'pg';
+
+export function createPostgresPool(config: DatabaseConfig): Pool {
+  return new Pool({
+    host: config.host,
+    port: config.port,
+    database: config.database,
+    user: config.user,
+    password: config.password,
+    max: config.poolMax,
+    connectionTimeoutMillis: config.connectionTimeoutMs,
+    idleTimeoutMillis: config.idleTimeoutMs,
+    application_name: 'pastoral-api',
+  });
+}
+```
+
+Não espalhar `new Pool()` pelo projeto.
+
+Deve existir apenas uma infraestrutura central responsável pela criação e ciclo de vida do pool.
+
+---
+
+# 8. Schema PostgreSQL
+
+O schema funcional da aplicação é:
+
+```text
+pastoral
+```
+
+Não depender implicitamente de:
+
+```text
+search_path
+```
+
+quando isso puder causar ambiguidade.
+
+Preferir queries explicitamente qualificadas:
+
+```sql
+SELECT *
+FROM pastoral.beneficiarios
+WHERE id = $1;
+```
+
+Funções também devem ser chamadas com schema explícito:
+
+```sql
+SELECT *
+FROM pastoral.nome_da_funcao(...);
+```
+
+Isso evita comportamento diferente entre:
+
+```text
+desenvolvimento
+testes
+produção
+```
+
+---
+
+# 9. Queries parametrizadas
+
+Toda entrada externa deve utilizar parâmetros.
+
+Correto:
+
+```ts
+await client.query(
+  `
+    SELECT id, pessoa_id, status
+    FROM pastoral.beneficiarios
+    WHERE id = $1
+  `,
+  [beneficiarioId],
+);
+```
+
+Proibido:
+
+```ts
+await client.query(
+  `SELECT * FROM pastoral.beneficiarios WHERE id = ${beneficiarioId}`,
+);
+```
+
+Nunca concatenar dados fornecidos pelo usuário em SQL.
+
+---
+
+# 10. Abstração da conexão
+
+Application e Domain não podem importar:
+
+```ts
+Pool
+PoolClient
+QueryResult
+```
+
+de `pg`.
+
+Tipos específicos do PostgreSQL pertencem à infraestrutura.
+
+Exemplo:
+
+```text
+application
+    ↓
+BeneficiarioQueryPort
+    ↑
+infrastructure
+    ↓
+PostgresBeneficiarioQuery
+    ↓
+pg
+```
+
+Nunca:
+
+```text
+UseCase
+   ↓
+Pool.query()
+```
+
+---
+
+# 11. Transações
+
+Criar uma abstração central para operações que realmente precisam controlar transações na aplicação.
+
+Exemplo conceitual:
+
+```ts
+export interface TransactionContext {
+  query<T>(
+    sql: string,
+    params?: readonly unknown[],
+  ): Promise<T>;
+}
+```
+
+Na implementação PostgreSQL:
+
+```text
+pool.connect()
+    ↓
+BEGIN
+    ↓
+operação
+    ↓
+COMMIT
+```
+
+Em erro:
+
+```text
+ROLLBACK
+```
+
+Sempre liberar o client:
+
+```text
+finally
+    ↓
+client.release()
+```
+
+Entretanto:
+
+> quando uma função PostgreSQL existente já encapsula atomicamente a operação de domínio, não abrir transações redundantes sem necessidade.
+
+Antes de implementar cada operação crítica, verificar como a função existente no schema se comporta.
+
+---
+
+# 12. Timeouts
+
+Não permitir queries indefinidamente bloqueadas.
+
+Avaliar configuração de:
+
+```text
+statement_timeout
+lock_timeout
+```
+
+especialmente para operações críticas como:
+
+```text
+retirada
+estorno
+montagem
+encerramento
+inventário
+```
+
+Os valores efetivos devem ser definidos conforme o ambiente e documentados.
+
+Não utilizar timeout extremamente baixo que possa interromper uma operação legítima.
+
+---
+
+# 13. BigInt PostgreSQL
+
+O banco utiliza diversas PKs:
+
+```text
+bigint
+```
+
+JavaScript possui particularidades com `bigint`.
+
+Definir uma estratégia única para toda a aplicação.
+
+Na fronteira HTTP, IDs devem ser serializados preferencialmente como:
+
+```json
+{
+  "id": "123"
+}
+```
+
+ou convertidos de forma segura quando houver garantia de que permanecem dentro de `Number.MAX_SAFE_INTEGER`.
+
+Não permitir que `JSON.stringify()` receba `bigint` nativo sem tratamento.
+
+A estratégia escolhida deve ser centralizada em:
+
+```text
+mapper
+presenter
+database adapter
+```
+
+e documentada.
+
+---
+
+# 14. Datas e timezone
+
+Banco e backend devem tratar datas de forma previsível.
+
+Para timestamps:
+
+```text
+timestamptz
+```
+
+é o padrão preferido.
+
+Persistir instantes de forma consistente e converter para apresentação somente na borda.
+
+Datas civis como:
+
+```text
+data da distribuição
+data de nascimento
+competência
+```
+
+não devem sofrer conversão indevida de timezone.
+
+Não transformar automaticamente:
+
+```text
+2026-09-12
+```
+
+em timestamp quando o domínio exige apenas uma data.
+
+---
+
+# 15. Bootstrap da aplicação
+
+Fluxo esperado:
+
+```text
+server.ts
+   ↓
+carregar env
+   ↓
+validar configuração
+   ↓
+criar logger
+   ↓
+criar pool PostgreSQL
+   ↓
+verificar conexão
+   ↓
+montar dependencies
+   ↓
+criar Express app
+   ↓
+registrar middlewares
+   ↓
+registrar routes
+   ↓
+registrar error handler
+   ↓
+listen()
+```
+
+Exemplo de responsabilidade:
+
+```text
+main/config.ts
+    configuração
+
+main/dependencies.ts
+    dependency injection / composition root
+
+main/app.ts
+    Express
+
+main/routes.ts
+    composição das rotas
+
+main/server.ts
+    processo e ciclo de vida
+```
+
+---
+
+# 16. Composition Root
+
+`main/dependencies.ts` é responsável pelo wiring.
+
+Exemplo:
+
+```ts
+const pool = createPostgresPool(config.database);
+
+const beneficiarioQuery =
+  new PostgresBeneficiarioQuery(pool);
+
+const beneficiarioCommand =
+  new PostgresBeneficiarioCommand(pool);
+
+const admitirBeneficiario =
+  new AdmitirBeneficiarioUseCase(
+    beneficiarioQuery,
+    beneficiarioCommand,
+  );
+
+const beneficiariosController =
+  new BeneficiariosController({
+    admitirBeneficiario,
+  });
+```
+
+Não utilizar service locator global.
+
+Não instanciar infraestrutura dentro dos use cases.
+
+---
+
+# 17. Healthcheck e readiness
+
+Criar:
+
+```text
+GET /health
+GET /ready
+```
+
+`/health` verifica se o processo está funcionando.
+
+Exemplo:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+`/ready` verifica dependências essenciais, principalmente PostgreSQL.
+
+Exemplo:
+
+```json
+{
+  "status": "ready",
+  "database": "ok"
+}
+```
+
+Se o banco estiver indisponível, readiness deve responder adequadamente.
+
+Não expor:
+
+```text
+senha
+host interno
+stack trace
+connection string
+```
+
+---
+
+# 18. Graceful shutdown
+
+Tratar pelo menos:
+
+```text
+SIGTERM
+SIGINT
+```
+
+Fluxo:
+
+```text
+receber signal
+    ↓
+parar de aceitar novas conexões HTTP
+    ↓
+aguardar requisições em andamento
+    ↓
+fechar pool PostgreSQL
+    ↓
+encerrar processo
+```
+
+Exemplo conceitual:
+
+```ts
+async function shutdown(signal: string) {
+  logger.info({ signal }, 'Shutting down');
+
+  server.close(async () => {
+    await pool.end();
+    process.exit(0);
+  });
+}
+```
+
+Evitar `process.exit()` abrupto antes de liberar recursos.
+
+---
+
+# 19. HTTP server
+
+Configurar middlewares globais em ordem previsível.
+
+Exemplo:
+
+```text
+request id
+logger HTTP
+security headers
+CORS
+body parser
+authentication
+routes
+404
+error handler
+```
+
+Não colocar regras de domínio em middleware global.
+
+---
+
+# 20. CORS
+
+Origens permitidas devem vir do ambiente.
+
+Exemplo:
+
+```env
+CORS_ORIGINS=http://localhost:4200
+```
+
+Quando houver mais de uma:
+
+```env
+CORS_ORIGINS=http://localhost:4200,https://pastoral.exemplo.com.br
+```
+
+Não utilizar indiscriminadamente:
+
+```text
+Access-Control-Allow-Origin: *
+```
+
+em ambiente autenticado.
+
+---
+
+# 21. Autenticação
+
+JWT deve ser abstraído por port.
+
+Application:
+
+```text
+TokenServicePort
+PasswordHasherPort
+```
+
+Infrastructure:
+
+```text
+JwtTokenService
+BcryptPasswordHasher
+```
+
+O domínio não conhece JWT.
+
+Payload mínimo do token deve evitar dados mutáveis desnecessários.
+
+A autorização efetiva deve considerar as permissões atuais do usuário.
+
+---
+
+# 22. Password hashing
+
+Nunca armazenar senha em texto puro.
+
+Usar:
+
+```text
+argon2
+```
+
+ou:
+
+```text
+bcrypt
+```
+
+com configuração segura.
+
+A biblioteca escolhida deve ficar encapsulada em:
+
+```text
+infrastructure/auth
+```
+
+---
+
+# 23. Logging
+
+Utilizar logger estruturado.
+
+Exemplo de campos:
+
+```text
+requestId
+method
+path
+statusCode
+durationMs
+userId
+errorCode
+```
+
+Nunca registrar:
+
+```text
+senha
+JWT completo
+documento completo sem necessidade
+conteúdo privado de arquivos
+connection string com senha
+```
+
+Evitar `console.log()` espalhado pelo código.
+
+---
+
+# 24. Request ID
+
+Cada requisição deve possuir identificador.
+
+Aceitar um identificador válido recebido do proxy quando aplicável ou gerar novo.
+
+Propagar para:
+
+```text
+logs
+erros
+auditoria técnica
+```
+
+Resposta pode incluir:
+
+```text
+X-Request-Id
+```
+
+---
+
+# 25. Tratamento global de erros
+
+Criar uma hierarquia clara.
+
+Exemplo:
+
+```text
+DomainError
+ApplicationError
+ValidationError
+AuthenticationError
+AuthorizationError
+InfrastructureError
+```
+
+O error handler HTTP é responsável pelo mapeamento.
+
+Exemplo:
+
+```text
+BENEFICIARIO_PENDENTE
+→ 409
+
+PERMISSAO_NEGADA
+→ 403
+
+PESSOA_NAO_ENCONTRADA
+→ 404
+```
+
+Erro PostgreSQL não deve chegar diretamente ao cliente.
+
+Nunca responder em produção:
+
+```json
+{
+  "stack": "...",
+  "sql": "...",
+  "database": "..."
+}
+```
+
+---
+
+# 26. Validação HTTP
+
+Utilizar schemas explícitos.
+
+Exemplo:
+
+```ts
+const desligarBeneficiarioSchema = z.object({
+  motivoId: z.coerce.bigint(),
+  observacao: z.string().trim().max(1000).optional(),
+});
+```
+
+Validar separadamente quando necessário:
+
+```text
+params
+query
+body
+headers
+```
+
+Não usar DTO sem validação apenas porque TypeScript compila.
+
+Tipos TypeScript não validam entrada em runtime.
+
+---
+
+# 27. Swagger / OpenAPI
+
+A API deve publicar documentação OpenAPI.
+
+Sugestão:
+
+```text
+GET /docs
+GET /openapi.json
+```
+
+Documentar:
+
+```text
+endpoint
+método
+permissão
+request
+response
+status HTTP
+erros de domínio relevantes
+```
+
+O contrato documentado deve corresponder ao comportamento real.
+
+Não manter documentação manual completamente separada dos schemas quando isso gerar duplicação evitável.
+
+---
+
+# 28. Upload e storage
+
+Inicialmente pode ser utilizado filesystem local.
+
+Configuração:
+
+```env
+FILES_STORAGE_PATH=./storage
+```
+
+A infraestrutura deve ser abstraída:
+
+```ts
+export interface FileStorage {
+  save(input: SaveFileInput): Promise<StoredFile>;
+  delete(key: string): Promise<void>;
+  getPrivateFile(key: string): Promise<StoredFileContent>;
+}
+```
+
+Estrutura:
+
+```text
+application/
+└── files/
+    └── ports/
+        └── file-storage.port.ts
+
+infrastructure/
+└── storage/
+    └── local-file.storage.ts
+```
+
+Isso permite migrar futuramente para outro storage sem alterar casos de uso.
+
+---
+
+# 29. Arquivos privados
+
+Fotos e documentos de beneficiários não devem ser publicados diretamente como arquivos estáticos.
+
+Evitar:
+
+```text
+app.use('/uploads', express.static(...))
+```
+
+para documentos privados.
+
+Acesso deve passar por endpoint autenticado/autorizado.
+
+---
+
+# 30. Testes
+
+Configurar ambiente separado:
+
+```env
+NODE_ENV=test
+```
+
+Nunca executar testes de integração destrutivos contra banco de produção.
+
+Separar:
+
+```text
+tests/unit
+tests/integration/database
+tests/integration/api
+```
+
+Testes unitários não devem exigir PostgreSQL quando a unidade testada depende apenas de ports.
+
+Testes de integração devem usar banco dedicado.
+
+---
+
+# 31. Banco de testes
+
+Utilizar banco/schema isolado para testes.
+
+Os testes devem poder:
+
+```text
+preparar estado
+executar caso
+verificar resultado
+limpar/reverter estado
+```
+
+Quando possível, utilizar transação com rollback por teste.
+
+Testes de concorrência podem exigir conexões independentes e não devem depender do mesmo transaction client.
+
+---
+
+# 32. Migrations futuras
+
+O banco atual já existe e é a baseline.
+
+Não gerar uma migration inicial destrutiva tentando recriar o schema existente.
+
+Criar uma estratégia para evoluções futuras:
+
+```text
+database/
+└── migrations/
+```
+
+Toda alteração futura deve:
+
+```text
+ser incremental
+ser versionada
+preservar dados
+possuir justificativa
+ser testável
+```
+
+O estado atual deve ser documentado como baseline.
+
+---
+
+# 33. Inicialização do banco
+
+No startup da API:
+
+não executar automaticamente:
+
+```text
+CREATE TABLE
+ALTER TABLE
+DROP TABLE
+seed
+migration destrutiva
+```
+
+A API deve verificar conectividade e compatibilidade mínima, mas não modificar silenciosamente a estrutura do banco.
+
+---
+
+# 34. Configuração de produção
+
+Em produção:
+
+```text
+NODE_ENV=production
+```
+
+Obrigatório:
+
+```text
+JWT_SECRET forte
+CORS explícito
+logs estruturados
+sem stack trace HTTP
+sem credenciais padrão
+sem senha de desenvolvimento
+```
+
+Configurações sensíveis devem vir do ambiente/secret manager da infraestrutura.
+
+---
+
+# 35. Estrutura final incluindo bootstrap
+
+A estrutura esperada passa a ser:
+
+```text
+src/
+├── domain/
+│   ├── pessoas/
+│   ├── beneficiarios/
+│   ├── candidaturas/
+│   ├── competencias/
+│   ├── distribuicoes/
+│   ├── atendimento/
+│   ├── estoque/
+│   ├── cestas/
+│   └── planejamento/
+│
+├── application/
+│   ├── auth/
+│   ├── pessoas/
+│   ├── beneficiarios/
+│   ├── candidaturas/
+│   ├── competencias/
+│   ├── distribuicoes/
+│   ├── atendimento/
+│   ├── estoque/
+│   ├── cestas/
+│   ├── planejamento/
+│   └── dashboard/
+│
+├── infrastructure/
+│   ├── database/
+│   │   └── postgres/
+│   │       ├── connection/
+│   │       ├── pessoas/
+│   │       ├── beneficiarios/
+│   │       ├── candidaturas/
+│   │       ├── distribuicoes/
+│   │       ├── atendimento/
+│   │       ├── estoque/
+│   │       └── planejamento/
+│   ├── auth/
+│   ├── storage/
+│   ├── logging/
+│   └── observability/
+│
+├── presentation/
+│   └── http/
+│       ├── auth/
+│       ├── pessoas/
+│       ├── beneficiarios/
+│       ├── candidaturas/
+│       ├── distribuicoes/
+│       ├── atendimento/
+│       ├── estoque/
+│       ├── cestas/
+│       ├── planejamento/
+│       ├── dashboard/
+│       └── middlewares/
+│
+├── main/
+│   ├── config.ts
+│   ├── dependencies.ts
+│   ├── routes.ts
+│   ├── app.ts
+│   └── server.ts
+│
+└── shared/
+    ├── errors/
+    ├── result/
+    ├── types/
+    └── utils/
+
+tests/
+├── unit/
+├── integration/
+│   ├── database/
+│   └── api/
+└── helpers/
+
+docs/
+├── architecture.md
+├── api.md
+├── database-mapping.md
+├── business-rules.md
+└── testing.md
+
+database/
+└── migrations/
+
+storage/
+
+.env.example
+package.json
+tsconfig.json
+tsconfig.build.json
+eslint.config.js
+vitest.config.ts
+AGENTS.md
+README.md
+```
+
+---
+
+# 36. Gate técnico antes dos módulos de negócio
+
+Antes de começar a implementação funcional de `beneficiarios`, `atendimento`, `estoque` etc., garantir que:
+
+```text
+[ ] projeto Node inicializado
+[ ] TypeScript strict funcionando
+[ ] .env validado
+[ ] .env.example criado
+[ ] conexão PostgreSQL funcionando
+[ ] pool centralizado
+[ ] schema pastoral acessível
+[ ] healthcheck funcionando
+[ ] readiness verificando PostgreSQL
+[ ] logger funcionando
+[ ] request ID funcionando
+[ ] error handler funcionando
+[ ] JWT configurado
+[ ] RBAC base configurado
+[ ] CORS configurado
+[ ] Swagger/OpenAPI configurado
+[ ] testes configurados
+[ ] graceful shutdown implementado
+[ ] npm run typecheck passa
+[ ] npm run lint passa
+[ ] npm run build passa
+```
+
+Somente depois desse gate iniciar a implementação dos casos de uso de negócio.
+
+---
+
+# 37. Diretriz de implementação
+
+Não confundir Clean Architecture com excesso de abstrações.
+
+Criar abstração quando existir uma fronteira real:
+
+```text
+PostgreSQL
+JWT
+password hashing
+storage
+HTTP
+clock
+```
+
+Não criar interfaces vazias ou wrappers sem propósito apenas para aumentar o número de camadas.
+
+O objetivo é:
+
+```text
+baixo acoplamento
+dependências explícitas
+testabilidade
+integridade
+clareza
+```
+
+e não maximizar a quantidade de arquivos.
