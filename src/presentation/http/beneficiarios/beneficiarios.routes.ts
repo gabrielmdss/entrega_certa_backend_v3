@@ -1,7 +1,1 @@
-import { Router } from 'express';
-import type { BeneficiariosController } from './beneficiarios.controller.js';
-export function createBeneficiariosRouter(controller: BeneficiariosController): Router {
-  const router = Router();
-  router.get('/:id', controller.obterPorId);
-  return router;
-}
+import { Router,type RequestHandler } from 'express';import type { BeneficiariosController } from './beneficiarios.controller.js';import type { BuscaBeneficiariosController } from '../atendimento/busca-beneficiarios.controller.js';import { requirePermission } from '../middlewares/require-permission.middleware.js';export function createBeneficiariosRouter(c:BeneficiariosController,auth:RequestHandler,b:BuscaBeneficiariosController){const r=Router();r.use(auth);r.get('/',requirePermission('BENEFICIARIO_VISUALIZAR'),b.buscar);r.post('/',requirePermission('BENEFICIARIO_ADMITIR'),c.admitir);r.get('/:id',requirePermission('BENEFICIARIO_VISUALIZAR'),c.obterPorId);r.post('/:id/desligar',requirePermission('BENEFICIARIO_DESLIGAR'),c.desligar);r.post('/:id/reativar',requirePermission('BENEFICIARIO_REATIVAR'),c.reativar);r.post('/:id/alterar-grupo',requirePermission('BENEFICIARIO_EDITAR'),c.alterarGrupo);return r;}

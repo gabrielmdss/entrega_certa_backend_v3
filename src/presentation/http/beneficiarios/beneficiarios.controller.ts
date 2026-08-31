@@ -1,13 +1,9 @@
-import type { Request, Response, NextFunction } from 'express';
-import type { ObterBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/obter-beneficiario.use-case.js';
-import { beneficiarioIdParamsSchema } from './beneficiarios.schemas.js';
-
-export class BeneficiariosController {
-  constructor(private readonly obterBeneficiario: ObterBeneficiarioUseCase) {}
-  obterPorId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { id } = beneficiarioIdParamsSchema.parse(req.params);
-      res.status(200).json({ data: await this.obterBeneficiario.execute(id) });
-    } catch (error) { next(error); }
-  };
-}
+import type { Request,Response,NextFunction } from 'express';
+import type { ObterBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/obter-beneficiario.use-case.js';import type { AdmitirBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/admitir-beneficiario.use-case.js';import type { DesligarBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/desligar-beneficiario.use-case.js';import type { ReativarBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/reativar-beneficiario.use-case.js';import type { AlterarGrupoBeneficiarioUseCase } from '../../../application/beneficiarios/use-cases/alterar-grupo-beneficiario.use-case.js';
+import { admitirBeneficiarioSchema,alterarGrupoSchema,beneficiarioIdParamsSchema,desligarBeneficiarioSchema } from './beneficiarios.schemas.js';
+export class BeneficiariosController{constructor(private readonly obterBeneficiario:ObterBeneficiarioUseCase,private readonly admitirBeneficiario:AdmitirBeneficiarioUseCase,private readonly desligarBeneficiario:DesligarBeneficiarioUseCase,private readonly reativarBeneficiario:ReativarBeneficiarioUseCase,private readonly alterarGrupoBeneficiario:AlterarGrupoBeneficiarioUseCase){}
+obterPorId=async(req:Request,res:Response,next:NextFunction):Promise<void>=>{try{const{id}=beneficiarioIdParamsSchema.parse(req.params);res.status(200).json({data:await this.obterBeneficiario.execute(id)});}catch(e){next(e);}};
+admitir=async(req:Request,res:Response,next:NextFunction):Promise<void>=>{try{const input=admitirBeneficiarioSchema.parse(req.body);const data=await this.admitirBeneficiario.execute({...input,usuarioId:res.locals.user.id,permissoes:res.locals.user.permissoes});res.status(201).json({data});}catch(e){next(e);}};
+desligar=async(req:Request,res:Response,next:NextFunction):Promise<void>=>{try{const{id}=beneficiarioIdParamsSchema.parse(req.params);const body=desligarBeneficiarioSchema.parse(req.body);await this.desligarBeneficiario.execute({beneficiarioId:id,...body,usuarioId:res.locals.user.id});res.status(204).send();}catch(e){next(e);}};
+reativar=async(req:Request,res:Response,next:NextFunction):Promise<void>=>{try{const{id}=beneficiarioIdParamsSchema.parse(req.params);await this.reativarBeneficiario.execute({beneficiarioId:id,usuarioId:res.locals.user.id});res.status(204).send();}catch(e){next(e);}};
+alterarGrupo=async(req:Request,res:Response,next:NextFunction):Promise<void>=>{try{const{id}=beneficiarioIdParamsSchema.parse(req.params);const body=alterarGrupoSchema.parse(req.body);await this.alterarGrupoBeneficiario.execute({beneficiarioId:id,...body,usuarioId:res.locals.user.id});res.status(204).send();}catch(e){next(e);}};}

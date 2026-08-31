@@ -1,0 +1,3 @@
+export interface PendenciaAtendimento{codigo:string;competencia?:string;grupoEsperado?:string;}
+export interface CheckInOutput{id:string;beneficiario:{id:string;nomeCompleto:string};classificacao:'REGULAR'|'PENDENTE';fila:'PRINCIPAL'|'SECUNDARIA';pendencias:PendenciaAtendimento[];ocorridoEm:string;}
+export interface AtendimentoPort{registrarCheckIn(i:{distribuicaoId:string;beneficiarioId:string;usuarioId:string}):Promise<CheckInOutput>;listarCheckIns(i:{distribuicaoId:string;classificacao?:'REGULAR'|'PENDENTE'}):Promise<CheckInOutput[]>;buscarBeneficiarios(f:{nome?:string;documento?:string;status?:string;grupoId?:string}):Promise<unknown[]>;}
