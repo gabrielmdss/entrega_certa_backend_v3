@@ -11,7 +11,13 @@ import { LoginUseCase } from "../application/auth/use-cases/login.use-case.js";
 import { GetCurrentUserUseCase } from "../application/auth/use-cases/get-current-user.use-case.js";
 import { AuthController } from "../presentation/http/auth/auth.controller.js";
 import { authenticate } from "../presentation/http/middlewares/authentication.middleware.js";
-import { PostgresBeneficiarioRepository } from "../infrastructure/database/postgres/beneficiarios/postgres-beneficiario.repository.js";
+import { PostgresBeneficiarioQuery } from "../infrastructure/database/postgres/beneficiarios/postgres-beneficiario-query.js";
+import { PostgresPessoa } from "../infrastructure/database/postgres/pessoas/postgres-pessoa.js";
+import { BuscarPessoasUseCase, CriarPessoaUseCase, ObterPessoaUseCase } from "../application/pessoas/use-cases/pessoas.use-cases.js";
+import { PessoasController } from "../presentation/http/pessoas/pessoas.controller.js";
+import { PostgresCatalogosAssistencia } from "../infrastructure/database/postgres/beneficiarios/postgres-catalogos-assistencia.js";
+import { ListarGruposDistribuicaoUseCase, ListarMotivosDesligamentoUseCase } from "../application/beneficiarios/use-cases/listar-catalogos-assistencia.use-cases.js";
+import { CatalogosAssistenciaController } from "../presentation/http/beneficiarios/catalogos-assistencia.controller.js";
 import { PostgresBeneficiarioCommand } from "../infrastructure/database/postgres/beneficiarios/postgres-beneficiario-command.js";
 import { ObterBeneficiarioUseCase } from "../application/beneficiarios/use-cases/obter-beneficiario.use-case.js";
 import { AdmitirBeneficiarioUseCase } from "../application/beneficiarios/use-cases/admitir-beneficiario.use-case.js";
@@ -111,15 +117,19 @@ const authController = new AuthController(
   new GetCurrentUserUseCase(authQuery),
 );
 const authentication = authenticate(tokenService, authQuery);
-const beneficiaryRepository = new PostgresBeneficiarioRepository(postgresPool);
+const beneficiaryQuery = new PostgresBeneficiarioQuery(postgresPool);
 const beneficiaryCommand = new PostgresBeneficiarioCommand(postgresPool);
 const beneficiariosController = new BeneficiariosController(
-  new ObterBeneficiarioUseCase(beneficiaryRepository),
+  new ObterBeneficiarioUseCase(beneficiaryQuery),
   new AdmitirBeneficiarioUseCase(beneficiaryCommand),
   new DesligarBeneficiarioUseCase(beneficiaryCommand),
   new ReativarBeneficiarioUseCase(beneficiaryCommand),
   new AlterarGrupoBeneficiarioUseCase(beneficiaryCommand),
 );
+const pessoaPort = new PostgresPessoa(postgresPool);
+const pessoasController = new PessoasController(new BuscarPessoasUseCase(pessoaPort), new CriarPessoaUseCase(pessoaPort), new ObterPessoaUseCase(pessoaPort));
+const catalogosPort = new PostgresCatalogosAssistencia(postgresPool);
+const catalogosAssistenciaController = new CatalogosAssistenciaController(new ListarGruposDistribuicaoUseCase(catalogosPort), new ListarMotivosDesligamentoUseCase(catalogosPort));
 const capacityPort = new PostgresCapacidade(postgresPool);
 const capacidadeController = new CapacidadeController(
   new ObterCapacidadeUseCase(capacityPort),
@@ -238,6 +248,8 @@ export const dependencies = {
   authController,
   authentication,
   beneficiariosController,
+  pessoasController,
+  catalogosAssistenciaController,
   capacidadeController,
   candidaturasController,
   competenciasController,

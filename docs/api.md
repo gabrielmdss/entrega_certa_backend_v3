@@ -1,5 +1,17 @@
 # API inicial
 
+## Seleção sem IDs técnicos
+
+- `GET /api/v1/pessoas?q=...` busca nome parcial com a normalização do banco.
+- `GET /api/v1/pessoas?documento=...` busca pelo documento normalizado; a resposta sempre mascara o número.
+- `POST /api/v1/pessoas` cadastra pessoa e documentos, sem admitir beneficiário automaticamente.
+- `GET /api/v1/pessoas/:id` retorna o detalhe seguro da pessoa.
+- `GET /api/v1/grupos-distribuicao` e `GET /api/v1/motivos-desligamento` retornam somente registros ativos.
+
+As leituras usam `BENEFICIARIO_VISUALIZAR`; o cadastro de pessoa usa a permissão existente `BENEFICIARIO_CADASTRAR`. `resultado` de tentativa de contato permanece texto livre: o schema não possui `CHECK` e os dados não confirmam um conjunto estável.
+
+O detalhe de beneficiário agrega pessoa, documentos mascarados, endereço, grupo, retirada, direitos, pendências e histórico sem expor `observacao_restrita`. A consulta foi validada com `EXPLAIN (ANALYZE, BUFFERS)` no banco de desenvolvimento: 0,665 ms no conjunto atual, sem leitura física de blocos.
+
 ## Auditoria, administração e históricos
 
 - `GET /api/v1/auditoria` — `AUDITORIA_VISUALIZAR`; filtros por usuário, entidade, entidadeId, operação e intervalo de datas, com paginação máxima de 100.

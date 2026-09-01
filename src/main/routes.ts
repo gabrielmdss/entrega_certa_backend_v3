@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { dependencies } from "./dependencies.js";
 import { createBeneficiariosRouter } from "../presentation/http/beneficiarios/beneficiarios.routes.js";
+import { createPessoasRouter } from "../presentation/http/pessoas/pessoas.routes.js";
+import { createCatalogosAssistenciaRouter } from "../presentation/http/beneficiarios/catalogos-assistencia.routes.js";
 import { createAuthRouter } from "../presentation/http/auth/auth.routes.js";
 import { createCapacidadeRouter } from "../presentation/http/capacidade/capacidade.routes.js";
 import { createCandidaturasRouter } from "../presentation/http/candidaturas/candidaturas.routes.js";
@@ -28,6 +30,8 @@ import {
 } from "../presentation/http/historicos/historicos.routes.js";
 export function createRoutes() {
   const r = Router();
+  r.use("/api/v1/pessoas", createPessoasRouter(dependencies.pessoasController, dependencies.authentication));
+  r.use("/api/v1", createCatalogosAssistenciaRouter(dependencies.catalogosAssistenciaController, dependencies.authentication));
   r.use(
     "/api/v1/auth",
     createAuthRouter(dependencies.authController, dependencies.authentication),
