@@ -3,11 +3,13 @@ import type { DistribuicoesController } from "./distribuicoes.controller.js";
 import type { AtendimentoController } from "../atendimento/atendimento.controller.js";
 import type { OperacoesAtendimentoController } from "../atendimento/operacoes-atendimento.controller.js";
 import { requirePermission } from "../middlewares/require-permission.middleware.js";
+import type { CestasAdicionaisController } from "../atendimento/cestas-adicionais.controller.js";
 export function createDistribuicoesRouter(
   c: DistribuicoesController,
   a: RequestHandler,
   at: AtendimentoController,
   op: OperacoesAtendimentoController,
+  additionalBaskets: CestasAdicionaisController,
 ) {
   const r = Router();
   r.use(a);
@@ -34,6 +36,16 @@ export function createDistribuicoesRouter(
     "/:id/retiradas",
     requirePermission("RETIRADA_REGISTRAR"),
     op.listarRetiradas,
+  );
+  r.post(
+    "/:id/cestas-adicionais",
+    requirePermission("CESTA_ADICIONAL_AUTORIZAR"),
+    additionalBaskets.autorizar,
+  );
+  r.get(
+    "/:id/cestas-adicionais",
+    requirePermission("RETIRADA_REGISTRAR"),
+    additionalBaskets.listar,
   );
   r.post(
     "/:id/remarcar",

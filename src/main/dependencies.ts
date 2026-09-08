@@ -77,6 +77,9 @@ import {
   RegistrarRetiradaUseCase,
 } from "../application/atendimento/use-cases/retirada.use-cases.js";
 import { OperacoesAtendimentoController } from "../presentation/http/atendimento/operacoes-atendimento.controller.js";
+import { PostgresCestaAdicional } from "../infrastructure/database/postgres/atendimento/postgres-cesta-adicional.js";
+import { AutorizarCestaAdicionalUseCase, EntregarCestaAdicionalUseCase, ListarCestasAdicionaisUseCase } from "../application/atendimento/use-cases/cesta-adicional.use-cases.js";
+import { CestasAdicionaisController } from "../presentation/http/atendimento/cestas-adicionais.controller.js";
 import { PostgresEstoque } from "../infrastructure/database/postgres/estoque/postgres-estoque.js";
 import * as EU from "../application/estoque/use-cases/estoque.use-cases.js";
 import { EstoqueController } from "../presentation/http/estoque/estoque.controller.js";
@@ -177,6 +180,12 @@ const operacoesAtendimentoController = new OperacoesAtendimentoController(
   new ObterRetiradaUseCase(retiradaPort),
   new EstornarRetiradaUseCase(retiradaPort),
 );
+const cestaAdicionalPort = new PostgresCestaAdicional(postgresPool);
+const cestasAdicionaisController = new CestasAdicionaisController(
+  new AutorizarCestaAdicionalUseCase(cestaAdicionalPort),
+  new EntregarCestaAdicionalUseCase(cestaAdicionalPort),
+  new ListarCestasAdicionaisUseCase(cestaAdicionalPort),
+);
 const estoquePort = new PostgresEstoque(postgresPool);
 const estoqueController = new EstoqueController({
   categorias: new EU.ListarCategoriasPrioridadeUseCase(estoquePort),
@@ -257,6 +266,7 @@ export const dependencies = {
   atendimentoController,
   buscaBeneficiariosController,
   operacoesAtendimentoController,
+  cestasAdicionaisController,
   estoqueController,
   cestasController,
   planejamentoController,

@@ -13,6 +13,7 @@ import {
   createJustificativasRouter,
   createRetiradasRouter,
 } from "../presentation/http/atendimento/operacoes-atendimento.routes.js";
+import { createCestasAdicionaisRouter } from "../presentation/http/atendimento/cestas-adicionais.routes.js";
 import {
   createDoadoresRouter,
   createEstoqueRouter,
@@ -72,6 +73,14 @@ export function createRoutes() {
       dependencies.authentication,
       dependencies.atendimentoController,
       dependencies.operacoesAtendimentoController,
+      dependencies.cestasAdicionaisController,
+    ),
+  );
+  r.use(
+    "/api/v1/cestas-adicionais",
+    createCestasAdicionaisRouter(
+      dependencies.cestasAdicionaisController,
+      dependencies.authentication,
     ),
   );
   r.use(

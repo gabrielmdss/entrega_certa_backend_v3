@@ -31,6 +31,9 @@ describe('bootstrap HTTP', () => {
     expect(response.body.paths['/api/v1/grupos-distribuicao'].get).toBeDefined();
     expect(response.body.paths['/api/v1/motivos-desligamento'].get).toBeDefined();
     expect(response.body.paths['/api/v1/candidaturas/{id}/tentativas-contato'].post).toBeDefined();
+    expect(response.body.paths['/api/v1/distribuicoes/{id}/cestas-adicionais'].post['x-permission']).toBe('CESTA_ADICIONAL_AUTORIZAR');
+    expect(response.body.paths['/api/v1/cestas-adicionais/{id}/entregar'].post['x-permission']).toBe('RETIRADA_REGISTRAR');
+    expect(response.body.components.schemas.CestaAdicional.properties.status.enum).toEqual(['AUTORIZADA','ENTREGUE','CANCELADA']);
     expect(response.body.components.securitySchemes.bearerAuth).toMatchObject({
       type: 'http',
       scheme: 'bearer',

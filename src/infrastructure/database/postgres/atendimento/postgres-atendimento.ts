@@ -3,6 +3,7 @@ import type {
   AtendimentoPort,
   CheckInOutput,
   PendenciaAtendimento,
+  SituacaoOperacionalCheckIn,
 } from "../../../../application/atendimento/ports/atendimento.port.js";
 import { DomainError } from "../../../../shared/errors/domain-error.js";
 export class PostgresAtendimento implements AtendimentoPort {
@@ -123,6 +124,10 @@ export class PostgresAtendimento implements AtendimentoPort {
           beneficiary.nome,
           classificacao,
           pendencias,
+          "AGUARDANDO",
+          pendencias.length
+            ? { podeRetirar: false, motivoBloqueio: "BENEFICIARIO_PENDENTE" }
+            : { podeRetirar: true, motivoBloqueio: null },
         );
       } catch (e) {
         if (isUnique(e))
@@ -142,6 +147,7 @@ export class PostgresAtendimento implements AtendimentoPort {
   async listarCheckIns(i: {
     distribuicaoId: string;
     classificacao?: "REGULAR" | "PENDENTE";
+    situacao?: SituacaoOperacionalCheckIn;
   }) {
     const context = await distribution(this.pool, i.distribuicaoId);
     const v: unknown[] = [i.distribuicaoId];
@@ -157,14 +163,23 @@ export class PostgresAtendimento implements AtendimentoPort {
         nome: string;
         grupo_id: string | null;
         classificacao: "REGULAR" | "PENDENTE";
+        retirada_valida: boolean;
+        direito_status: string | null;
+        distribuicao_prevista_id: string | null;
         ocorrido_em: Date;
       }>(
-        `SELECT ci.id::text,ci.beneficiario_id::text,p.nome_completo nome,b.grupo_distribuicao_id::text grupo_id,ci.classificacao_inicial classificacao,ci.ocorrido_em FROM pastoral.distribuicoes_checkins ci JOIN pastoral.beneficiarios b ON b.id=ci.beneficiario_id JOIN pastoral.pessoas p ON p.id=b.pessoa_id WHERE ci.distribuicao_id=$1${extra} ORDER BY ci.ocorrido_em,ci.id`,
-        v,
+        `SELECT ci.id::text,ci.beneficiario_id::text,p.nome_completo nome,b.grupo_distribuicao_id::text grupo_id,ci.classificacao_inicial classificacao,ci.ocorrido_em,EXISTS(SELECT 1 FROM pastoral.retiradas r WHERE r.distribuicao_id=ci.distribuicao_id AND r.beneficiario_id=ci.beneficiario_id AND r.status='VALIDA') retirada_valida,db.status direito_status,db.distribuicao_prevista_id::text FROM pastoral.distribuicoes_checkins ci JOIN pastoral.beneficiarios b ON b.id=ci.beneficiario_id JOIN pastoral.pessoas p ON p.id=b.pessoa_id LEFT JOIN pastoral.direitos_beneficio db ON db.beneficiario_id=ci.beneficiario_id AND db.competencia_id=$${v.length + 1} AND db.tipo='REGULAR' WHERE ci.distribuicao_id=$1${extra} ORDER BY ci.ocorrido_em,ci.id`,
+        [...v, context.competencia_id],
       )
     ).rows;
     const out: CheckInOutput[] = [];
-    for (const r of rows)
+    for (const r of rows) {
+      const pendencias = await classify(
+        this.pool,
+        context,
+        r.beneficiario_id,
+        r.grupo_id,
+      );
       out.push(
         output(
           r.id,
@@ -172,10 +187,41 @@ export class PostgresAtendimento implements AtendimentoPort {
           r.beneficiario_id,
           r.nome,
           r.classificacao,
-          await classify(this.pool, context, r.beneficiario_id, r.grupo_id),
+          pendencias,
+          operationalSituation(r.retirada_valida, r.direito_status),
+          withdrawalEligibility(
+            r.retirada_valida,
+            r.direito_status,
+            r.distribuicao_prevista_id,
+            context.id,
+            pendencias,
+          ),
         ),
       );
-    return out;
+    }
+    const hasEligibleRegularWaiting = out.some(
+      (checkIn) =>
+        checkIn.classificacao === "REGULAR" &&
+        checkIn.situacaoOperacional === "AGUARDANDO" &&
+        checkIn.podeRetirar,
+    );
+    const operational = out.map((checkIn) =>
+      checkIn.classificacao === "PENDENTE" &&
+      checkIn.situacaoOperacional === "AGUARDANDO" &&
+      checkIn.podeRetirar &&
+      hasEligibleRegularWaiting
+        ? {
+            ...checkIn,
+            podeRetirar: false,
+            motivoBloqueio: "REGULARES_AGUARDANDO",
+          }
+        : checkIn,
+    );
+    return i.situacao
+      ? operational.filter(
+          (checkIn) => checkIn.situacaoOperacional === i.situacao,
+        )
+      : operational;
   }
 }
 interface Dist {
@@ -251,15 +297,48 @@ function output(
   nome: string,
   c: "REGULAR" | "PENDENTE",
   p: PendenciaAtendimento[],
+  situacaoOperacional: SituacaoOperacionalCheckIn = "AGUARDANDO",
+  eligibility: { podeRetirar: boolean; motivoBloqueio: string | null } = {
+    podeRetirar: true,
+    motivoBloqueio: null,
+  },
 ): CheckInOutput {
   return {
     id,
     beneficiario: { id: bid, nomeCompleto: nome },
     classificacao: c,
     fila: c === "REGULAR" ? "PRINCIPAL" : "SECUNDARIA",
+    situacaoOperacional,
+    ...eligibility,
     pendencias: p,
     ocorridoEm: date.toISOString(),
   };
+}
+function withdrawalEligibility(
+  validWithdrawal: boolean,
+  rightStatus: string | null,
+  plannedDistributionId: string | null,
+  currentDistributionId: string,
+  pending: PendenciaAtendimento[],
+) {
+  if (validWithdrawal)
+    return { podeRetirar: false, motivoBloqueio: "DIREITO_JA_CONSUMIDO" };
+  if (rightStatus !== "DISPONIVEL")
+    return { podeRetirar: false, motivoBloqueio: "DIREITO_NAO_DISPONIVEL" };
+  if (plannedDistributionId !== currentDistributionId)
+    return { podeRetirar: false, motivoBloqueio: "DIREITO_NAO_DISPONIVEL" };
+  if (pending.length)
+    return { podeRetirar: false, motivoBloqueio: "BENEFICIARIO_PENDENTE" };
+  return { podeRetirar: true, motivoBloqueio: null };
+}
+function operationalSituation(
+  validWithdrawal: boolean,
+  rightStatus: string | null,
+): SituacaoOperacionalCheckIn {
+  if (validWithdrawal) return "ATENDIDO";
+  if (rightStatus === "NAO_ATENDIDO_ESTOQUE") return rightStatus;
+  if (rightStatus === "NAO_ATENDIDO_IRREGULARIDADE") return rightStatus;
+  return "AGUARDANDO";
 }
 function mask(v: string) {
   const s = v.replace(/\W/g, "");

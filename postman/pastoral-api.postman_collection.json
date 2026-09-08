@@ -648,9 +648,32 @@
                 "exec": [
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
                   "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
-                  "const j=pm.response.json();const a=j.data?.eventos?.find(e=>e.tipo===\"AUSENCIA\");if(a?.detalhes?.ausenciaId)pm.environment.set(\"ausenciaId\",a.detalhes.ausenciaId);"
+                  "const j=pm.response.json();const a=j.data?.eventos?.find(e=>e.tipo===\"AUSENCIA\");if(a?.detalhes?.ausenciaId)pm.environment.set(\"ausenciaId\",a.detalhes.ausenciaId);",
+                  "const h=j.data?.eventos?.find(e=>e.tipo===\"JUSTIFICATIVA\");if(h?.detalhes?.justificativaId)pm.environment.set(\"justificativaId\",h.detalhes.justificativaId);",
+                  "pm.test(\"Justificativas expõem ID persistido\",()=>j.data?.eventos?.filter(e=>e.tipo===\"JUSTIFICATIVA\").forEach(e=>pm.expect(e.detalhes.justificativaId).to.be.a(\"string\")));"
                 ]
               }
+            }
+          ],
+          "response": [
+            {
+              "name": "Histórico com justificativa persistida",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/historico"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"data\": {\n    \"beneficiario\": { \"id\": \"1\", \"nome\": \"Maria\" },\n    \"eventos\": [{\n      \"tipo\": \"JUSTIFICATIVA\",\n      \"ocorridoEm\": \"2026-09-04T14:00:00.000Z\",\n      \"detalhes\": { \"justificativaId\": \"9\", \"ausenciaId\": \"8\", \"decisao\": \"PENDENTE\", \"momento\": \"DEPOIS_DISTRIBUICAO\" }\n    }]\n  }\n}"
             }
           ]
         }
@@ -1115,7 +1138,16 @@
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
                   "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
                   "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"checkInId\", String(captured));",
-                  "pm.test(\"Check-in classificado\",()=>pm.expect([\"REGULAR\",\"PENDENTE\"]).to.include(pm.response.json().data?.classificacao));"
+                  "pm.test(\"Check-in classificado\",()=>pm.expect([\"REGULAR\",\"PENDENTE\"]).to.include(pm.response.json().data?.classificacao));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
                 ]
               }
             }
@@ -1151,7 +1183,16 @@
                 "exec": [
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
                   "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
-                  "pm.test(\"Pendente\",()=>pm.expect(pm.response.json().data?.classificacao).to.equal(\"PENDENTE\"));"
+                  "pm.test(\"Pendente\",()=>pm.expect(pm.response.json().data?.classificacao).to.equal(\"PENDENTE\"));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
                 ]
               }
             }
@@ -1171,8 +1212,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
                 ]
               }
             }
@@ -1192,8 +1241,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"Somente regulares\", () => pm.response.json().data.forEach((item) => pm.expect(item.classificacao).to.equal(\"REGULAR\")));"
                 ]
               }
             }
@@ -1213,8 +1271,17 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
-                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"Somente pendentes\", () => pm.response.json().data.forEach((item) => pm.expect(item.classificacao).to.equal(\"PENDENTE\")));"
                 ]
               }
             }
@@ -1367,7 +1434,31 @@
                 "exec": [
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
                   "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
-                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaId\", String(captured));"
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaId\", String(captured));",
+                  "pm.test(\"Retirada válida criada\", () => pm.expect(pm.response.json().data?.id).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar Check-in ATENDIDO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=REGULAR"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retirada válida torna ATENDIDO\", () => {",
+                  "  const item = pm.response.json().data.find((x) => x.beneficiario.id === pm.environment.get(\"beneficiarioId\"));",
+                  "  pm.expect(item.situacaoOperacional).to.equal(\"ATENDIDO\");",
+                  "  pm.expect(item.podeRetirar).to.equal(false);",
+                  "});"
                 ]
               }
             }
@@ -1480,6 +1571,202 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar retorno após estorno",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=REGULAR"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Estorno devolve à espera\", () => {",
+                  "  const item = pm.response.json().data.find((x) => x.beneficiario.id === pm.environment.get(\"beneficiarioId\"));",
+                  "  pm.expect(item.situacaoOperacional).to.equal(\"AGUARDANDO\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] REGULARES_AGUARDANDO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioPendenteId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Fila secundária bloqueada por regular apto\", () => {",
+                  "  pm.expect(pm.response.code).to.equal(409);",
+                  "  pm.expect(pm.response.json().error.code).to.equal(\"REGULARES_AGUARDANDO\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] DIREITO_NAO_DISPONIVEL nesta distribuição",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioOutraDistribuicaoId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Direito previsto para outra distribuição\", () => {",
+                  "  pm.expect(pm.response.code).to.equal(409);",
+                  "  pm.expect(pm.response.json().error.code).to.equal(\"DIREITO_NAO_DISPONIVEL\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10A - Cestas Adicionais",
+      "description": "Autoriza, lista e entrega cestas adicionais usando as regras persistidas no backend e no PostgreSQL.",
+      "item": [
+        {
+          "name": "Autorizar Cesta Adicional",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/cestas-adicionais",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"modeloCestaId\": \"{{modeloCestaId}}\",\n  \"quantidade\": 1,\n  \"justificativa\": \"Necessidade adicional autorizada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Autorização criada\",()=>pm.response.to.have.status(201));",
+                  "const data=pm.response.json().data; pm.environment.set(\"cestaAdicionalId\",data.id);",
+                  "pm.test(\"Estado AUTORIZADA\",()=>pm.expect(data.status).to.equal(\"AUTORIZADA\"));",
+                  "pm.test(\"Contrato explícito\",()=>{pm.expect(data.quantidade).to.equal(1);pm.expect(data.entrega).to.equal(null);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Cestas Adicionais",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/cestas-adicionais"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Lista autorizações\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Estados válidos\",()=>pm.response.json().data.forEach((item)=>pm.expect([\"AUTORIZADA\",\"ENTREGUE\",\"CANCELADA\"]).to.include(item.status)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entregar Cesta Adicional",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/cestas-adicionais/{{cestaAdicionalId}}/entregar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Entrega realizada\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Estado ENTREGUE\",()=>{const data=pm.response.json().data;pm.expect(data.status).to.equal(\"ENTREGUE\");pm.expect(data.entrega).to.be.an(\"object\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] Entregar Novamente",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/cestas-adicionais/{{cestaAdicionalId}}/entregar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Transição inválida rejeitada\",()=>pm.response.to.have.status(409));",
+                  "pm.test(\"Código de domínio\",()=>pm.expect(pm.response.json().error.code).to.equal(\"CESTA_ADICIONAL_NAO_AUTORIZADA\"));"
                 ]
               }
             }

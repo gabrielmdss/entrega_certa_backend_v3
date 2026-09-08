@@ -178,15 +178,21 @@ export class PostgresEstoque implements EstoquePort {
   async informarItemInventario(
     i: Parameters<EstoquePort["informarItemInventario"]>[0],
   ) {
-    const r = await this.pool.query(
-      `UPDATE pastoral.inventarios_itens ii SET saldo_fisico=$3 FROM pastoral.inventarios inv WHERE ii.inventario_id=$1 AND ii.apresentacao_insumo_id=$2 AND inv.id=ii.inventario_id AND inv.status='ABERTO'`,
-      [i.inventarioId, i.apresentacaoId, i.saldoFisico],
-    );
-    if (!r.rowCount)
-      throw new DomainError(
-        "INVENTARIO_ITEM_NAO_ENCONTRADO",
-        "Inventário aberto/item não encontrado",
+    await this.tx(async (c) => {
+      await c.query(
+        "SELECT id FROM pastoral.inventarios WHERE id=$1 FOR UPDATE",
+        [i.inventarioId],
       );
+      const r = await c.query(
+        `UPDATE pastoral.inventarios_itens ii SET saldo_fisico=$3 FROM pastoral.inventarios inv WHERE ii.inventario_id=$1 AND ii.apresentacao_insumo_id=$2 AND inv.id=ii.inventario_id AND inv.status='ABERTO'`,
+        [i.inventarioId, i.apresentacaoId, i.saldoFisico],
+      );
+      if (!r.rowCount)
+        throw new DomainError(
+          "INVENTARIO_ITEM_NAO_ENCONTRADO",
+          "Inventário aberto/item não encontrado",
+        );
+    });
   }
   async concluirInventario(
     i: Parameters<EstoquePort["concluirInventario"]>[0],
@@ -220,14 +226,14 @@ export class PostgresEstoque implements EstoquePort {
   async listarLotes() {
     return (
       await this.pool.query(
-        `${LOTES} GROUP BY l.id,pv.numero_versao,pc.id,u.id,u.login ORDER BY l.montado_em DESC,l.id DESC`,
+        `${LOTES} GROUP BY l.id,pv.id,pc.id,u.id ORDER BY l.montado_em DESC,l.id DESC`,
       )
     ).rows.map(mapLote);
   }
   async obterLote(id: string) {
     const x = (
       await this.pool.query(
-        `${LOTES} WHERE l.id=$1 GROUP BY l.id,pv.numero_versao,pc.id,u.id,u.login`,
+        `${LOTES} WHERE l.id=$1 GROUP BY l.id,pv.id,pc.id,u.id`,
         [id],
       )
     ).rows[0];
@@ -240,14 +246,34 @@ export class PostgresEstoque implements EstoquePort {
           quantidade_disponivel: number;
           quantidade_montada: number;
           planejamento_versao_id: string;
+          status: string;
         }>(
-          "SELECT quantidade_disponivel,quantidade_montada,planejamento_versao_id::text FROM pastoral.lotes_montagem WHERE id=$1 FOR UPDATE",
+          "SELECT quantidade_disponivel,quantidade_montada,planejamento_versao_id::text,status FROM pastoral.lotes_montagem WHERE id=$1 FOR UPDATE",
           [i.loteId],
         )
       ).rows[0];
       if (!l)
         throw new DomainError("LOTE_NAO_ENCONTRADO", "Lote não encontrado");
-      if (i.quantidade <= 0 || l.quantidade_disponivel < i.quantidade)
+      if (l.status === "DESMONTADO")
+        throw new DomainError("LOTE_DESMONTADO", "Lote já desmontado");
+      if (
+        i.quantidade !== l.quantidade_montada &&
+        (
+          await c.query(
+            "SELECT 1 FROM pastoral.lotes_montagem_ajustes WHERE lote_montagem_id=$1 LIMIT 1",
+            [i.loteId],
+          )
+        ).rowCount
+      )
+        throw new DomainError(
+          "LOTE_AJUSTADO_DESMONTAGEM_PARCIAL",
+          "Este lote possui ajustes e só pode ser desmontado integralmente.",
+        );
+      if (
+        !Number.isSafeInteger(i.quantidade) ||
+        i.quantidade <= 0 ||
+        l.quantidade_disponivel < i.quantidade
+      )
         throw new DomainError(
           "QUANTIDADE_CESTAS_INSUFICIENTE",
           "Quantidade indisponível",
@@ -256,13 +282,24 @@ export class PostgresEstoque implements EstoquePort {
         await c.query<{
           apresentacao_insumo_id: string;
           quantidade_por_cesta: number;
+          quantidade_total: string;
         }>(
-          "SELECT apresentacao_insumo_id::text,quantidade_por_cesta FROM pastoral.lotes_montagem_itens WHERE lote_montagem_id=$1",
+          "SELECT atual.apresentacao_insumo_id::text,COALESCE(original.quantidade_por_cesta,0) quantidade_por_cesta,atual.quantidade_total::text FROM pastoral.vw_composicao_atual_lotes atual LEFT JOIN pastoral.lotes_montagem_itens original USING(lote_montagem_id,apresentacao_insumo_id) WHERE atual.lote_montagem_id=$1 ORDER BY atual.apresentacao_insumo_id",
           [i.loteId],
         )
       ).rows;
       for (const x of itens) {
-        const q = x.quantidade_por_cesta * i.quantidade;
+        const atual = BigInt(x.quantidade_total);
+        const q =
+          i.quantidade === l.quantidade_montada
+            ? atual
+            : BigInt(x.quantidade_por_cesta) * BigInt(i.quantidade);
+        if (atual < 0n || q > atual)
+          throw new DomainError(
+            "COMPOSICAO_LOTE_INVALIDA",
+            "Composição do lote inconsistente; requer conferência",
+          );
+        if (q === 0n) continue;
         await c.query(
           "INSERT INTO pastoral.movimentacoes_insumos(apresentacao_insumo_id,tipo,quantidade,sentido,referencia_tipo,referencia_id,usuario_id,observacao) VALUES($1,'RETORNO_DESMONTAGEM',$2,1,'LOTE_MONTAGEM',$3,$4,$5)",
           [x.apresentacao_insumo_id, q, i.loteId, i.usuarioId, i.motivo],
@@ -277,7 +314,7 @@ export class PostgresEstoque implements EstoquePort {
         [i.loteId, i.quantidade, i.usuarioId, i.motivo],
       );
       await c.query(
-        "UPDATE pastoral.lotes_montagem SET quantidade_montada=quantidade_montada-$2,quantidade_disponivel=quantidade_disponivel-$2,status=CASE WHEN quantidade_montada-$2=0 THEN 'DESMONTADO' ELSE 'ATIVO' END WHERE id=$1",
+        "UPDATE pastoral.lotes_montagem SET quantidade_montada=quantidade_montada-$2,quantidade_disponivel=quantidade_disponivel-$2,status=CASE WHEN quantidade_montada-$2=0 THEN 'DESMONTADO' WHEN quantidade_disponivel-$2=0 THEN 'ESGOTADO' ELSE 'ATIVO' END WHERE id=$1",
         [i.loteId, i.quantidade],
       );
     });
@@ -285,17 +322,54 @@ export class PostgresEstoque implements EstoquePort {
   async ajustarLote(i: Parameters<EstoquePort["ajustarLote"]>[0]) {
     return this.tx(async (c) => {
       const l = (
-        await c.query<{ quantidade_montada: number }>(
-          "SELECT quantidade_montada FROM pastoral.lotes_montagem WHERE id=$1 FOR UPDATE",
+        await c.query<{
+          quantidade_montada: number;
+          quantidade_disponivel: number;
+          status: string;
+        }>(
+          "SELECT quantidade_montada,quantidade_disponivel,status FROM pastoral.lotes_montagem WHERE id=$1 FOR UPDATE",
           [i.loteId],
         )
       ).rows[0];
       if (!l)
         throw new DomainError("LOTE_NAO_ENCONTRADO", "Lote não encontrado");
+      if (l.status === "DESMONTADO")
+        throw new DomainError("LOTE_DESMONTADO", "Lote já desmontado");
+      // Without individual basket composition, the aggregate cannot establish
+      // which contents are still physically available when baskets left the lot.
+      if (
+        l.status !== "ATIVO" ||
+        l.quantidade_disponivel !== l.quantidade_montada
+      )
+        throw new DomainError(
+          "LOTE_AJUSTE_CESTAS_INDISPONIVEIS",
+          "O ajuste exige que todas as cestas do lote estejam disponíveis no estoque.",
+        );
+      if (
+        !Number.isSafeInteger(i.quantidadeCestasAfetadas) ||
+        i.quantidadeCestasAfetadas <= 0 ||
+        i.itens.length === 0
+      )
+        throw new DomainError(
+          "AJUSTE_INVALIDO",
+          "Informe quantidades inteiras positivas",
+        );
       if (i.quantidadeCestasAfetadas > l.quantidade_montada)
         throw new DomainError(
           "QUANTIDADE_CESTAS_INSUFICIENTE",
           "Quantidade de cestas inválida",
+        );
+      if (
+        (
+          await c.query(
+            "SELECT 1 FROM pastoral.vw_composicao_atual_lotes WHERE lote_montagem_id=$1 AND quantidade_total<0 LIMIT 1",
+            [i.loteId],
+          )
+        ).rowCount
+      )
+        throw new DomainError(
+          "COMPOSICAO_LOTE_INVALIDA",
+          "Composição do lote inconsistente; requer conferência",
         );
       const a = await c.query<{ id: string }>(
         "INSERT INTO pastoral.lotes_montagem_ajustes(lote_montagem_id,quantidade_cestas_afetadas,motivo,usuario_id) VALUES($1,$2,$3,$4) RETURNING id::text",
@@ -303,7 +377,16 @@ export class PostgresEstoque implements EstoquePort {
       );
       const id = a.rows[0]?.id ?? "";
       for (const x of i.itens) {
-        const total = x.quantidadePorCesta * i.quantidadeCestasAfetadas;
+        if (
+          !Number.isSafeInteger(x.quantidadePorCesta) ||
+          x.quantidadePorCesta <= 0
+        )
+          throw new DomainError(
+            "AJUSTE_INVALIDO",
+            "Informe quantidades inteiras positivas",
+          );
+        const total =
+          BigInt(x.quantidadePorCesta) * BigInt(i.quantidadeCestasAfetadas);
         if (x.operacao === "ADICIONAR") {
           await c.query(
             "SELECT id FROM pastoral.insumos_apresentacoes WHERE id=$1 FOR UPDATE",
@@ -315,19 +398,19 @@ export class PostgresEstoque implements EstoquePort {
               [x.apresentacaoInsumoId],
             )
           ).rows[0];
-          if (Number(s?.saldo_disponivel ?? 0) < total)
+          if (BigInt(s?.saldo_disponivel ?? 0) < total)
             throw new DomainError(
               "SALDO_INSUFICIENTE",
               "Saldo insuficiente para ajuste",
             );
         } else {
           const snap = (
-            await c.query<{ quantidade_por_cesta: number }>(
-              "SELECT quantidade_por_cesta FROM pastoral.lotes_montagem_itens WHERE lote_montagem_id=$1 AND apresentacao_insumo_id=$2",
+            await c.query<{ quantidade_total: string }>(
+              "SELECT quantidade_total::text FROM pastoral.vw_composicao_atual_lotes WHERE lote_montagem_id=$1 AND apresentacao_insumo_id=$2",
               [i.loteId, x.apresentacaoInsumoId],
             )
           ).rows[0];
-          if (!snap || snap.quantidade_por_cesta < x.quantidadePorCesta)
+          if (!snap || BigInt(snap.quantidade_total) < total)
             throw new DomainError(
               "AJUSTE_INVALIDO",
               "Remoção excede composição",
@@ -400,6 +483,7 @@ export class PostgresEstoque implements EstoquePort {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      await c.query("SELECT pastoral.bloquear_estoque()");
       const r = await op(c);
       await c.query("COMMIT");
       return r;
@@ -443,12 +527,26 @@ function mapInsumo(x: InsumoRow) {
     saldoDisponivel: Number(x.saldo_disponivel),
   };
 }
-const LOTES = `SELECT l.id::text,l.quantidade_montada,l.quantidade_disponivel,l.status,l.montado_em,pv.id::text planejamento_versao_id,pv.numero_versao,pc.id::text planejamento_id,u.id::text usuario_id,u.login,COALESCE(json_agg(json_build_object('apresentacaoInsumoId',li.apresentacao_insumo_id::text,'quantidadePorCesta',li.quantidade_por_cesta)) FILTER(WHERE li.id IS NOT NULL),'[]') itens FROM pastoral.lotes_montagem l JOIN pastoral.planejamentos_cesta_versoes pv ON pv.id=l.planejamento_versao_id JOIN pastoral.planejamentos_cesta pc ON pc.id=pv.planejamento_cesta_id JOIN pastoral.usuarios u ON u.id=l.usuario_id LEFT JOIN pastoral.lotes_montagem_itens li ON li.lote_montagem_id=l.id`;
+const LOTES = `SELECT l.id::text,l.quantidade_montada,l.quantidade_disponivel,l.status,l.montado_em,
+ EXISTS(SELECT 1 FROM pastoral.lotes_montagem_ajustes a WHERE a.lote_montagem_id=l.id) possui_ajustes,
+ pv.id::text planejamento_versao_id,pv.numero_versao,pc.id::text planejamento_id,u.id::text usuario_id,u.login,
+ COALESCE(json_agg(json_build_object(
+   'apresentacaoInsumoId',li.apresentacao_insumo_id::text,
+   'quantidadePorCesta',CASE WHEN l.quantidade_montada>0 THEN li.quantidade_total::numeric/l.quantidade_montada ELSE 0 END,
+   'quantidadeTotal',li.quantidade_total
+ ) ORDER BY li.apresentacao_insumo_id) FILTER(WHERE li.apresentacao_insumo_id IS NOT NULL),'[]') itens
+ FROM pastoral.lotes_montagem l
+ JOIN pastoral.planejamentos_cesta_versoes pv ON pv.id=l.planejamento_versao_id
+ JOIN pastoral.planejamentos_cesta pc ON pc.id=pv.planejamento_cesta_id
+ JOIN pastoral.usuarios u ON u.id=l.usuario_id
+ LEFT JOIN pastoral.vw_composicao_atual_lotes li ON li.lote_montagem_id=l.id`;
+
 interface LoteRow {
   id: string;
   quantidade_montada: number;
   quantidade_disponivel: number;
   status: string;
+  possui_ajustes: boolean;
   montado_em: Date;
   planejamento_id: string;
   planejamento_versao_id: string;
@@ -463,6 +561,16 @@ function mapLote(x: LoteRow) {
     quantidadeMontada: x.quantidade_montada,
     quantidadeDisponivel: x.quantidade_disponivel,
     status: x.status,
+    possuiAjustes: x.possui_ajustes,
+    permiteDesmontagemParcial: !x.possui_ajustes,
+    podeAjustar:
+      x.status === "ATIVO" &&
+      x.quantidade_disponivel === x.quantidade_montada &&
+      x.quantidade_montada > 0,
+    podeDesmontar:
+      x.status !== "DESMONTADO" &&
+      x.quantidade_disponivel > 0 &&
+      (!x.possui_ajustes || x.quantidade_disponivel === x.quantidade_montada),
     montadoEm: (x.montado_em as Date).toISOString(),
     planejamento: {
       id: x.planejamento_id,
@@ -478,6 +586,11 @@ async function schema(c: PoolClient) {
 }
 function dbError(e: unknown, code: string) {
   const m = e instanceof Error ? e.message : "Operação inválida";
+  if (m.includes("Inventário desatualizado"))
+    return new DomainError(
+      "INVENTARIO_DESATUALIZADO",
+      "O saldo mudou durante a contagem; inicie um novo inventário",
+    );
   return new DomainError(
     m.includes("insuficiente") ? "SALDO_INSUFICIENTE" : code,
     m,

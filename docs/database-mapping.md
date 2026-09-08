@@ -1,26 +1,8 @@
 # Mapeamento do banco PostgreSQL
 
-## Auditoria operacional
+Inspeção específica de ajuste/composição/desmontagem em 2026-09-06 e divergências documentadas em [lote-composition-fix.md](lote-composition-fix.md). A migration incremental `20260906_001_current_lot_composition.sql` ainda não foi aplicada ao banco configurado.
 
-`pastoral.auditoria` possui PK bigint, FK opcional para usuário, entidade/operação textuais, entidadeId opcional, motivo, timestamp e snapshots JSONB anterior/novo. Existem índices por data e por `(entidade, entidade_id)`, sem triggers próprios e sem coluna request ID. A expectativa é crescimento append-only proporcional às mutações auditáveis; não há política de retenção definida no schema.
-
-A API não retorna snapshots na listagem. O detalhe remove recursivamente chaves de senha, password, secret, token, authorization, connection string e equivalentes. Nenhuma alteração de schema ou índice foi necessária.
-
-## Read models do dashboard
-
-O dashboard reutiliza `vw_capacidade_atual`, `vw_saldo_insumos`, `vw_disponibilidade_insumos`, `vw_reservas_insumos_ativas` e `vw_cestas_liberadas_distribuicao`, complementadas por CTEs/aggregates sobre direitos, planejamento, lotes e movimentos. Nenhuma view, índice ou tabela foi criada nesta etapa.
-
-A compatibilidade automática de lote usa `lotes_montagem.planejamento_versao_id`: apenas lotes da versão aprovada analisada são somados. O schema não relaciona diretamente uma versão de lote a versões futuras ainda inexistentes; por isso a projeção de três meses documenta a composição aprovada de referência como limitação explícita.
-
-## Validação do encerramento
-
-`pastoral.encerrar_distribuicao` é reutilizada pela API. Ela bloqueia a distribuição e os direitos, classifica direitos abertos, cria ausências idempotentemente, reconcilia cada liberação e devolve remanescentes ao lote exato antes de marcar a distribuição como `ENCERRADA`.
-
-O enum lógico de `movimentacoes_cestas.tipo` não possui um tipo para retorno de remanescente. A função atualiza `quantidade_retornada` e o saldo do lote, mas não cria movimentação separada; a API preserva esse comportamento do schema em vez de inventar DDL.
-
-Para manter uma ordem única de locks na concorrência liberação × encerramento, o adapter de liberação bloqueia primeiro a distribuição e rejeita explicitamente distribuições encerradas antes de chamar `pastoral.liberar_cestas`.
-
-Gerado por inspeção somente leitura do schema `pastoral` em 2026-08-30T10:45:43.289Z.
+Gerado por inspeção somente leitura do schema `pastoral` em 2026-09-05T21:40:28.177Z.
 Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ## Resumo
@@ -40,14 +22,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.arquivos`
 
-| Coluna          | Tipo                       | Nulo | Default |
-| --------------- | -------------------------- | ---: | ------- |
-| `id`            | `bigint`                   |   NO |         |
-| `storage_key`   | `character varying`        |   NO |         |
-| `nome_original` | `character varying`        |  YES |         |
-| `mime_type`     | `character varying`        |  YES |         |
-| `tamanho_bytes` | `bigint`                   |  YES |         |
-| `criado_em`     | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `storage_key` | `character varying` | NO |  |
+| `nome_original` | `character varying` | YES |  |
+| `mime_type` | `character varying` | YES |  |
+| `tamanho_bytes` | `bigint` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -62,17 +44,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.auditoria`
 
-| Coluna            | Tipo                       | Nulo | Default |
-| ----------------- | -------------------------- | ---: | ------- |
-| `id`              | `bigint`                   |   NO |         |
-| `usuario_id`      | `bigint`                   |  YES |         |
-| `entidade`        | `character varying`        |   NO |         |
-| `entidade_id`     | `bigint`                   |  YES |         |
-| `operacao`        | `character varying`        |   NO |         |
-| `estado_anterior` | `jsonb`                    |  YES |         |
-| `estado_novo`     | `jsonb`                    |  YES |         |
-| `motivo`          | `text`                     |  YES |         |
-| `ocorrido_em`     | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `usuario_id` | `bigint` | YES |  |
+| `entidade` | `character varying` | NO |  |
+| `entidade_id` | `bigint` | YES |  |
+| `operacao` | `character varying` | NO |  |
+| `estado_anterior` | `jsonb` | YES |  |
+| `estado_novo` | `jsonb` | YES |  |
+| `motivo` | `text` | YES |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -87,12 +69,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.ausencias`
 
-| Coluna                 | Tipo                       | Nulo | Default                                |
-| ---------------------- | -------------------------- | ---: | -------------------------------------- |
-| `id`                   | `bigint`                   |   NO |                                        |
-| `direito_beneficio_id` | `bigint`                   |   NO |                                        |
-| `status`               | `character varying`        |   NO | 'SEM_JUSTIFICATIVA'::character varying |
-| `identificado_em`      | `timestamp with time zone` |   NO | now()                                  |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `direito_beneficio_id` | `bigint` | NO |  |
+| `status` | `character varying` | NO | 'SEM_JUSTIFICATIVA'::character varying |
+| `identificado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -108,16 +90,16 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.beneficiarios`
 
-| Coluna                  | Tipo                       | Nulo | Default                      |
-| ----------------------- | -------------------------- | ---: | ---------------------------- |
-| `id`                    | `bigint`                   |   NO |                              |
-| `pessoa_id`             | `bigint`                   |   NO |                              |
-| `grupo_distribuicao_id` | `bigint`                   |  YES |                              |
-| `status`                | `character varying`        |   NO | 'ATIVO'::character varying   |
-| `origem_cadastro`       | `character varying`        |   NO | 'SISTEMA'::character varying |
-| `data_admissao`         | `date`                     |   NO | CURRENT_DATE                 |
-| `criado_em`             | `timestamp with time zone` |   NO | now()                        |
-| `atualizado_em`         | `timestamp with time zone` |   NO | now()                        |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | NO |  |
+| `grupo_distribuicao_id` | `bigint` | YES |  |
+| `status` | `character varying` | NO | 'ATIVO'::character varying |
+| `origem_cadastro` | `character varying` | NO | 'SISTEMA'::character varying |
+| `data_admissao` | `date` | NO | CURRENT_DATE |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -136,14 +118,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.beneficiarios_desligamentos`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `beneficiario_id`        | `bigint`                   |   NO |         |
-| `motivo_desligamento_id` | `bigint`                   |   NO |         |
-| `observacao`             | `text`                     |  YES |         |
-| `usuario_responsavel_id` | `bigint`                   |   NO |         |
-| `ocorrido_em`            | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `motivo_desligamento_id` | `bigint` | NO |  |
+| `observacao` | `text` | YES |  |
+| `usuario_responsavel_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -158,15 +140,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.beneficiarios_grupos_historico`
 
-| Coluna             | Tipo                       | Nulo | Default |
-| ------------------ | -------------------------- | ---: | ------- |
-| `id`               | `bigint`                   |   NO |         |
-| `beneficiario_id`  | `bigint`                   |   NO |         |
-| `grupo_origem_id`  | `bigint`                   |  YES |         |
-| `grupo_destino_id` | `bigint`                   |   NO |         |
-| `vigencia_inicio`  | `timestamp with time zone` |   NO | now()   |
-| `motivo`           | `text`                     |  YES |         |
-| `usuario_id`       | `bigint`                   |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `grupo_origem_id` | `bigint` | YES |  |
+| `grupo_destino_id` | `bigint` | NO |  |
+| `vigencia_inicio` | `timestamp with time zone` | NO | now() |
+| `motivo` | `text` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
 
 **Constraints**
 
@@ -182,17 +164,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.candidaturas`
 
-| Coluna                     | Tipo                       | Nulo | Default                         |
-| -------------------------- | -------------------------- | ---: | ------------------------------- |
-| `id`                       | `bigint`                   |   NO |                                 |
-| `pessoa_id`                | `bigint`                   |   NO |                                 |
-| `status`                   | `character varying`        |   NO | 'AGUARDANDO'::character varying |
-| `data_entrada`             | `timestamp with time zone` |   NO | now()                           |
-| `prioridade_excepcional`   | `boolean`                  |   NO | false                           |
-| `justificativa_prioridade` | `text`                     |  YES |                                 |
-| `usuario_priorizacao_id`   | `bigint`                   |  YES |                                 |
-| `criado_em`                | `timestamp with time zone` |   NO | now()                           |
-| `atualizado_em`            | `timestamp with time zone` |   NO | now()                           |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | NO |  |
+| `status` | `character varying` | NO | 'AGUARDANDO'::character varying |
+| `data_entrada` | `timestamp with time zone` | NO | now() |
+| `prioridade_excepcional` | `boolean` | NO | false |
+| `justificativa_prioridade` | `text` | YES |  |
+| `usuario_priorizacao_id` | `bigint` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -210,14 +192,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.candidaturas_tentativas_contato`
 
-| Coluna           | Tipo                       | Nulo | Default |
-| ---------------- | -------------------------- | ---: | ------- |
-| `id`             | `bigint`                   |   NO |         |
-| `candidatura_id` | `bigint`                   |   NO |         |
-| `usuario_id`     | `bigint`                   |   NO |         |
-| `resultado`      | `character varying`        |  YES |         |
-| `observacao`     | `text`                     |  YES |         |
-| `ocorrido_em`    | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `candidatura_id` | `bigint` | NO |  |
+| `usuario_id` | `bigint` | NO |  |
+| `resultado` | `character varying` | YES |  |
+| `observacao` | `text` | YES |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -231,12 +213,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.categorias_prioridade_insumo`
 
-| Coluna             | Tipo                | Nulo | Default |
-| ------------------ | ------------------- | ---: | ------- |
-| `id`               | `bigint`            |   NO |         |
-| `codigo`           | `character varying` |   NO |         |
-| `descricao`        | `character varying` |   NO |         |
-| `ordem_prioridade` | `smallint`          |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `descricao` | `character varying` | NO |  |
+| `ordem_prioridade` | `smallint` | NO |  |
 
 **Constraints**
 
@@ -250,19 +232,19 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.cestas_adicionais`
 
-| Coluna                   | Tipo                       | Nulo | Default                         |
-| ------------------------ | -------------------------- | ---: | ------------------------------- |
-| `id`                     | `bigint`                   |   NO |                                 |
-| `beneficiario_id`        | `bigint`                   |   NO |                                 |
-| `distribuicao_id`        | `bigint`                   |   NO |                                 |
-| `modelo_cesta_id`        | `bigint`                   |   NO |                                 |
-| `quantidade`             | `integer`                  |   NO | 1                               |
-| `justificativa`          | `text`                     |   NO |                                 |
-| `usuario_autorizador_id` | `bigint`                   |   NO |                                 |
-| `autorizado_em`          | `timestamp with time zone` |   NO | now()                           |
-| `usuario_entrega_id`     | `bigint`                   |  YES |                                 |
-| `entregue_em`            | `timestamp with time zone` |  YES |                                 |
-| `status`                 | `character varying`        |   NO | 'AUTORIZADA'::character varying |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `modelo_cesta_id` | `bigint` | NO |  |
+| `quantidade` | `integer` | NO | 1 |
+| `justificativa` | `text` | NO |  |
+| `usuario_autorizador_id` | `bigint` | NO |  |
+| `autorizado_em` | `timestamp with time zone` | NO | now() |
+| `usuario_entrega_id` | `bigint` | YES |  |
+| `entregue_em` | `timestamp with time zone` | YES |  |
+| `status` | `character varying` | NO | 'AUTORIZADA'::character varying |
 
 **Constraints**
 
@@ -281,13 +263,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.competencias`
 
-| Coluna      | Tipo                       | Nulo | Default                     |
-| ----------- | -------------------------- | ---: | --------------------------- |
-| `id`        | `bigint`                   |   NO |                             |
-| `ano`       | `smallint`                 |   NO |                             |
-| `mes`       | `smallint`                 |   NO |                             |
-| `status`    | `character varying`        |   NO | 'ABERTA'::character varying |
-| `criado_em` | `timestamp with time zone` |   NO | now()                       |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `ano` | `smallint` | NO |  |
+| `mes` | `smallint` | NO |  |
+| `status` | `character varying` | NO | 'ABERTA'::character varying |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -303,14 +285,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.configuracoes_capacidade`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `capacidade`             | `integer`                  |   NO |         |
-| `vigencia_inicio`        | `timestamp with time zone` |   NO | now()   |
-| `justificativa`          | `text`                     |   NO |         |
-| `usuario_responsavel_id` | `bigint`                   |   NO |         |
-| `criado_em`              | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `capacidade` | `integer` | NO |  |
+| `vigencia_inicio` | `timestamp with time zone` | NO | now() |
+| `justificativa` | `text` | NO |  |
+| `usuario_responsavel_id` | `bigint` | NO |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -325,17 +307,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.direitos_beneficio`
 
-| Coluna                     | Tipo                       | Nulo | Default                                  |
-| -------------------------- | -------------------------- | ---: | ---------------------------------------- |
-| `id`                       | `bigint`                   |   NO |                                          |
-| `beneficiario_id`          | `bigint`                   |   NO |                                          |
-| `competencia_id`           | `bigint`                   |   NO |                                          |
-| `distribuicao_prevista_id` | `bigint`                   |  YES |                                          |
-| `tipo`                     | `character varying`        |   NO | 'REGULAR'::character varying             |
-| `status`                   | `character varying`        |   NO | 'DISPONIVEL'::character varying          |
-| `origem`                   | `character varying`        |   NO | 'GERACAO_COMPETENCIA'::character varying |
-| `criado_em`                | `timestamp with time zone` |   NO | now()                                    |
-| `atualizado_em`            | `timestamp with time zone` |   NO | now()                                    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `competencia_id` | `bigint` | NO |  |
+| `distribuicao_prevista_id` | `bigint` | YES |  |
+| `tipo` | `character varying` | NO | 'REGULAR'::character varying |
+| `status` | `character varying` | NO | 'DISPONIVEL'::character varying |
+| `origem` | `character varying` | NO | 'GERACAO_COMPETENCIA'::character varying |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -355,20 +337,20 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.distribuicoes`
 
-| Coluna                    | Tipo                       | Nulo | Default                        |
-| ------------------------- | -------------------------- | ---: | ------------------------------ |
-| `id`                      | `bigint`                   |   NO |                                |
-| `competencia_id`          | `bigint`                   |   NO |                                |
-| `grupo_distribuicao_id`   | `bigint`                   |   NO |                                |
-| `data_prevista`           | `date`                     |   NO |                                |
-| `data_real`               | `date`                     |  YES |                                |
-| `status`                  | `character varying`        |   NO | 'PLANEJADA'::character varying |
-| `usuario_abertura_id`     | `bigint`                   |  YES |                                |
-| `abertura_em`             | `timestamp with time zone` |  YES |                                |
-| `usuario_encerramento_id` | `bigint`                   |  YES |                                |
-| `encerramento_em`         | `timestamp with time zone` |  YES |                                |
-| `criado_em`               | `timestamp with time zone` |   NO | now()                          |
-| `atualizado_em`           | `timestamp with time zone` |   NO | now()                          |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `competencia_id` | `bigint` | NO |  |
+| `grupo_distribuicao_id` | `bigint` | NO |  |
+| `data_prevista` | `date` | NO |  |
+| `data_real` | `date` | YES |  |
+| `status` | `character varying` | NO | 'PLANEJADA'::character varying |
+| `usuario_abertura_id` | `bigint` | YES |  |
+| `abertura_em` | `timestamp with time zone` | YES |  |
+| `usuario_encerramento_id` | `bigint` | YES |  |
+| `encerramento_em` | `timestamp with time zone` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -388,14 +370,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.distribuicoes_checkins`
 
-| Coluna                  | Tipo                       | Nulo | Default |
-| ----------------------- | -------------------------- | ---: | ------- |
-| `id`                    | `bigint`                   |   NO |         |
-| `distribuicao_id`       | `bigint`                   |   NO |         |
-| `beneficiario_id`       | `bigint`                   |   NO |         |
-| `classificacao_inicial` | `character varying`        |   NO |         |
-| `usuario_id`            | `bigint`                   |   NO |         |
-| `ocorrido_em`           | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `classificacao_inicial` | `character varying` | NO |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -414,16 +396,16 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.distribuicoes_historico`
 
-| Coluna            | Tipo                       | Nulo | Default |
-| ----------------- | -------------------------- | ---: | ------- |
-| `id`              | `bigint`                   |   NO |         |
-| `distribuicao_id` | `bigint`                   |   NO |         |
-| `tipo_evento`     | `character varying`        |   NO |         |
-| `data_anterior`   | `date`                     |  YES |         |
-| `data_nova`       | `date`                     |  YES |         |
-| `motivo`          | `text`                     |  YES |         |
-| `usuario_id`      | `bigint`                   |   NO |         |
-| `ocorrido_em`     | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `tipo_evento` | `character varying` | NO |  |
+| `data_anterior` | `date` | YES |  |
+| `data_nova` | `date` | YES |  |
+| `motivo` | `text` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -437,16 +419,16 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.distribuicoes_liberacoes_cestas`
 
-| Coluna                 | Tipo                       | Nulo | Default |
-| ---------------------- | -------------------------- | ---: | ------- |
-| `id`                   | `bigint`                   |   NO |         |
-| `distribuicao_id`      | `bigint`                   |   NO |         |
-| `lote_montagem_id`     | `bigint`                   |   NO |         |
-| `quantidade_liberada`  | `integer`                  |   NO |         |
-| `quantidade_consumida` | `integer`                  |   NO | 0       |
-| `quantidade_retornada` | `integer`                  |   NO | 0       |
-| `usuario_estoque_id`   | `bigint`                   |   NO |         |
-| `liberado_em`          | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `lote_montagem_id` | `bigint` | NO |  |
+| `quantidade_liberada` | `integer` | NO |  |
+| `quantidade_consumida` | `integer` | NO | 0 |
+| `quantidade_retornada` | `integer` | NO | 0 |
+| `usuario_estoque_id` | `bigint` | NO |  |
+| `liberado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -466,15 +448,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.doadores`
 
-| Coluna       | Tipo                       | Nulo | Default |
-| ------------ | -------------------------- | ---: | ------- |
-| `id`         | `bigint`                   |   NO |         |
-| `tipo`       | `character varying`        |   NO |         |
-| `nome`       | `character varying`        |   NO |         |
-| `telefone`   | `character varying`        |  YES |         |
-| `observacao` | `text`                     |  YES |         |
-| `ativo`      | `boolean`                  |   NO | true    |
-| `criado_em`  | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `telefone` | `character varying` | YES |  |
+| `observacao` | `text` | YES |  |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -487,15 +469,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.entradas_estoque`
 
-| Coluna         | Tipo                       | Nulo | Default      |
-| -------------- | -------------------------- | ---: | ------------ |
-| `id`           | `bigint`                   |   NO |              |
-| `tipo`         | `character varying`        |   NO |              |
-| `doador_id`    | `bigint`                   |  YES |              |
-| `usuario_id`   | `bigint`                   |   NO |              |
-| `data_entrada` | `date`                     |   NO | CURRENT_DATE |
-| `observacao`   | `text`                     |  YES |              |
-| `criado_em`    | `timestamp with time zone` |   NO | now()        |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `doador_id` | `bigint` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `data_entrada` | `date` | NO | CURRENT_DATE |
+| `observacao` | `text` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -510,13 +492,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.entradas_estoque_itens`
 
-| Coluna                   | Tipo      | Nulo | Default |
-| ------------------------ | --------- | ---: | ------- |
-| `id`                     | `bigint`  |   NO |         |
-| `entrada_estoque_id`     | `bigint`  |   NO |         |
-| `apresentacao_insumo_id` | `bigint`  |   NO |         |
-| `quantidade`             | `integer` |   NO |         |
-| `validade`               | `date`    |  YES |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `entrada_estoque_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade` | `integer` | NO |  |
+| `validade` | `date` | YES |  |
 
 **Constraints**
 
@@ -531,15 +513,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.entregas_cestas`
 
-| Coluna               | Tipo                       | Nulo | Default |
-| -------------------- | -------------------------- | ---: | ------- |
-| `id`                 | `bigint`                   |   NO |         |
-| `distribuicao_id`    | `bigint`                   |   NO |         |
-| `retirada_id`        | `bigint`                   |  YES |         |
-| `cesta_adicional_id` | `bigint`                   |  YES |         |
-| `quantidade`         | `integer`                  |   NO | 1       |
-| `usuario_id`         | `bigint`                   |   NO |         |
-| `ocorrido_em`        | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `retirada_id` | `bigint` | YES |  |
+| `cesta_adicional_id` | `bigint` | YES |  |
+| `quantidade` | `integer` | NO | 1 |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -561,13 +543,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.entregas_cestas_lotes`
 
-| Coluna               | Tipo      | Nulo | Default |
-| -------------------- | --------- | ---: | ------- |
-| `id`                 | `bigint`  |   NO |         |
-| `entrega_cesta_id`   | `bigint`  |   NO |         |
-| `liberacao_cesta_id` | `bigint`  |   NO |         |
-| `lote_montagem_id`   | `bigint`  |   NO |         |
-| `quantidade`         | `integer` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `entrega_cesta_id` | `bigint` | NO |  |
+| `liberacao_cesta_id` | `bigint` | NO |  |
+| `lote_montagem_id` | `bigint` | NO |  |
+| `quantidade` | `integer` | NO |  |
 
 **Constraints**
 
@@ -585,14 +567,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.grupos_distribuicao`
 
-| Coluna             | Tipo                | Nulo | Default |
-| ------------------ | ------------------- | ---: | ------- |
-| `id`               | `bigint`            |   NO |         |
-| `codigo`           | `character varying` |   NO |         |
-| `nome`             | `character varying` |   NO |         |
-| `regra_calendario` | `character varying` |   NO |         |
-| `ordem`            | `smallint`          |   NO |         |
-| `ativo`            | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `regra_calendario` | `character varying` | NO |  |
+| `ordem` | `smallint` | NO |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -607,14 +589,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.insumos`
 
-| Coluna                    | Tipo                       | Nulo | Default |
-| ------------------------- | -------------------------- | ---: | ------- |
-| `id`                      | `bigint`                   |   NO |         |
-| `nome`                    | `character varying`        |   NO |         |
-| `categoria_prioridade_id` | `bigint`                   |  YES |         |
-| `ativo`                   | `boolean`                  |   NO | true    |
-| `criado_em`               | `timestamp with time zone` |   NO | now()   |
-| `atualizado_em`           | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `categoria_prioridade_id` | `bigint` | YES |  |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -628,14 +610,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.insumos_apresentacoes`
 
-| Coluna                  | Tipo                | Nulo | Default |
-| ----------------------- | ------------------- | ---: | ------- |
-| `id`                    | `bigint`            |   NO |         |
-| `insumo_id`             | `bigint`            |   NO |         |
-| `descricao`             | `character varying` |   NO |         |
-| `quantidade_referencia` | `numeric`           |  YES |         |
-| `unidade_medida`        | `character varying` |  YES |         |
-| `ativo`                 | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `insumo_id` | `bigint` | NO |  |
+| `descricao` | `character varying` | NO |  |
+| `quantidade_referencia` | `numeric` | YES |  |
+| `unidade_medida` | `character varying` | YES |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -651,13 +633,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.inventarios`
 
-| Coluna                   | Tipo                       | Nulo | Default                     |
-| ------------------------ | -------------------------- | ---: | --------------------------- |
-| `id`                     | `bigint`                   |   NO |                             |
-| `status`                 | `character varying`        |   NO | 'ABERTO'::character varying |
-| `usuario_responsavel_id` | `bigint`                   |   NO |                             |
-| `iniciado_em`            | `timestamp with time zone` |   NO | now()                       |
-| `concluido_em`           | `timestamp with time zone` |  YES |                             |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `status` | `character varying` | NO | 'ABERTO'::character varying |
+| `usuario_responsavel_id` | `bigint` | NO |  |
+| `iniciado_em` | `timestamp with time zone` | NO | now() |
+| `concluido_em` | `timestamp with time zone` | YES |  |
 
 **Constraints**
 
@@ -671,14 +653,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.inventarios_itens`
 
-| Coluna                   | Tipo      | Nulo | Default |
-| ------------------------ | --------- | ---: | ------- |
-| `id`                     | `bigint`  |   NO |         |
-| `inventario_id`          | `bigint`  |   NO |         |
-| `apresentacao_insumo_id` | `bigint`  |   NO |         |
-| `saldo_sistema`          | `integer` |   NO |         |
-| `saldo_fisico`           | `integer` |   NO |         |
-| `diferenca`              | `integer` |  YES |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `inventario_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `saldo_sistema` | `integer` | NO |  |
+| `saldo_fisico` | `integer` | NO |  |
+| `diferenca` | `integer` | YES |  |
 
 **Constraints**
 
@@ -695,18 +677,18 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.justificativas_ausencia`
 
-| Coluna                | Tipo                       | Nulo | Default                       |
-| --------------------- | -------------------------- | ---: | ----------------------------- |
-| `id`                  | `bigint`                   |   NO |                               |
-| `ausencia_id`         | `bigint`                   |   NO |                               |
-| `descricao`           | `text`                     |   NO |                               |
-| `momento`             | `character varying`        |   NO |                               |
-| `usuario_registro_id` | `bigint`                   |   NO |                               |
-| `data_apresentacao`   | `timestamp with time zone` |   NO | now()                         |
-| `decisao`             | `character varying`        |   NO | 'PENDENTE'::character varying |
-| `usuario_decisao_id`  | `bigint`                   |  YES |                               |
-| `data_decisao`        | `timestamp with time zone` |  YES |                               |
-| `observacao_decisao`  | `text`                     |  YES |                               |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `ausencia_id` | `bigint` | NO |  |
+| `descricao` | `text` | NO |  |
+| `momento` | `character varying` | NO |  |
+| `usuario_registro_id` | `bigint` | NO |  |
+| `data_apresentacao` | `timestamp with time zone` | NO | now() |
+| `decisao` | `character varying` | NO | 'PENDENTE'::character varying |
+| `usuario_decisao_id` | `bigint` | YES |  |
+| `data_decisao` | `timestamp with time zone` | YES |  |
+| `observacao_decisao` | `text` | YES |  |
 
 **Constraints**
 
@@ -723,15 +705,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.lotes_montagem`
 
-| Coluna                   | Tipo                       | Nulo | Default                    |
-| ------------------------ | -------------------------- | ---: | -------------------------- |
-| `id`                     | `bigint`                   |   NO |                            |
-| `planejamento_versao_id` | `bigint`                   |   NO |                            |
-| `quantidade_montada`     | `integer`                  |   NO |                            |
-| `quantidade_disponivel`  | `integer`                  |   NO |                            |
-| `usuario_id`             | `bigint`                   |   NO |                            |
-| `montado_em`             | `timestamp with time zone` |   NO | now()                      |
-| `status`                 | `character varying`        |   NO | 'ATIVO'::character varying |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `planejamento_versao_id` | `bigint` | NO |  |
+| `quantidade_montada` | `integer` | NO |  |
+| `quantidade_disponivel` | `integer` | NO |  |
+| `usuario_id` | `bigint` | NO |  |
+| `montado_em` | `timestamp with time zone` | NO | now() |
+| `status` | `character varying` | NO | 'ATIVO'::character varying |
 
 **Constraints**
 
@@ -750,14 +732,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.lotes_montagem_ajustes`
 
-| Coluna                       | Tipo                       | Nulo | Default |
-| ---------------------------- | -------------------------- | ---: | ------- |
-| `id`                         | `bigint`                   |   NO |         |
-| `lote_montagem_id`           | `bigint`                   |   NO |         |
-| `quantidade_cestas_afetadas` | `integer`                  |   NO |         |
-| `motivo`                     | `text`                     |   NO |         |
-| `usuario_id`                 | `bigint`                   |   NO |         |
-| `ocorrido_em`                | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `lote_montagem_id` | `bigint` | NO |  |
+| `quantidade_cestas_afetadas` | `integer` | NO |  |
+| `motivo` | `text` | NO |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -772,13 +754,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.lotes_montagem_ajustes_itens`
 
-| Coluna                   | Tipo                | Nulo | Default |
-| ------------------------ | ------------------- | ---: | ------- |
-| `id`                     | `bigint`            |   NO |         |
-| `ajuste_id`              | `bigint`            |   NO |         |
-| `apresentacao_insumo_id` | `bigint`            |   NO |         |
-| `operacao`               | `character varying` |   NO |         |
-| `quantidade_por_cesta`   | `integer`           |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `ajuste_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `operacao` | `character varying` | NO |  |
+| `quantidade_por_cesta` | `integer` | NO |  |
 
 **Constraints**
 
@@ -794,12 +776,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.lotes_montagem_itens`
 
-| Coluna                   | Tipo      | Nulo | Default |
-| ------------------------ | --------- | ---: | ------- |
-| `id`                     | `bigint`  |   NO |         |
-| `lote_montagem_id`       | `bigint`  |   NO |         |
-| `apresentacao_insumo_id` | `bigint`  |   NO |         |
-| `quantidade_por_cesta`   | `integer` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `lote_montagem_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade_por_cesta` | `integer` | NO |  |
 
 **Constraints**
 
@@ -816,13 +798,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.modelos_cesta`
 
-| Coluna      | Tipo                       | Nulo | Default |
-| ----------- | -------------------------- | ---: | ------- |
-| `id`        | `bigint`                   |   NO |         |
-| `nome`      | `character varying`        |   NO |         |
-| `tipo`      | `character varying`        |   NO |         |
-| `ativo`     | `boolean`                  |   NO | true    |
-| `criado_em` | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -835,14 +817,14 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.modelos_cesta_versoes`
 
-| Coluna            | Tipo                       | Nulo | Default |
-| ----------------- | -------------------------- | ---: | ------- |
-| `id`              | `bigint`                   |   NO |         |
-| `modelo_cesta_id` | `bigint`                   |   NO |         |
-| `numero_versao`   | `integer`                  |   NO |         |
-| `meta_itens`      | `integer`                  |  YES |         |
-| `usuario_id`      | `bigint`                   |   NO |         |
-| `criado_em`       | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `modelo_cesta_id` | `bigint` | NO |  |
+| `numero_versao` | `integer` | NO |  |
+| `meta_itens` | `integer` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -859,12 +841,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.modelos_cesta_versoes_itens`
 
-| Coluna                   | Tipo      | Nulo | Default |
-| ------------------------ | --------- | ---: | ------- |
-| `id`                     | `bigint`  |   NO |         |
-| `modelo_cesta_versao_id` | `bigint`  |   NO |         |
-| `apresentacao_insumo_id` | `bigint`  |   NO |         |
-| `quantidade`             | `integer` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `modelo_cesta_versao_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade` | `integer` | NO |  |
 
 **Constraints**
 
@@ -881,12 +863,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.motivos_desligamento`
 
-| Coluna      | Tipo                | Nulo | Default |
-| ----------- | ------------------- | ---: | ------- |
-| `id`        | `bigint`            |   NO |         |
-| `codigo`    | `character varying` |   NO |         |
-| `descricao` | `character varying` |   NO |         |
-| `ativo`     | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `descricao` | `character varying` | NO |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -900,12 +882,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.motivos_perda_estoque`
 
-| Coluna      | Tipo                | Nulo | Default |
-| ----------- | ------------------- | ---: | ------- |
-| `id`        | `bigint`            |   NO |         |
-| `codigo`    | `character varying` |   NO |         |
-| `descricao` | `character varying` |   NO |         |
-| `ativo`     | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `descricao` | `character varying` | NO |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -919,18 +901,18 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.movimentacoes_cestas`
 
-| Coluna             | Tipo                       | Nulo | Default |
-| ------------------ | -------------------------- | ---: | ------- |
-| `id`               | `bigint`                   |   NO |         |
-| `lote_montagem_id` | `bigint`                   |   NO |         |
-| `tipo`             | `character varying`        |   NO |         |
-| `quantidade`       | `integer`                  |   NO |         |
-| `sentido`          | `smallint`                 |   NO |         |
-| `referencia_tipo`  | `character varying`        |  YES |         |
-| `referencia_id`    | `bigint`                   |  YES |         |
-| `usuario_id`       | `bigint`                   |   NO |         |
-| `ocorrido_em`      | `timestamp with time zone` |   NO | now()   |
-| `observacao`       | `text`                     |  YES |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `lote_montagem_id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `quantidade` | `integer` | NO |  |
+| `sentido` | `smallint` | NO |  |
+| `referencia_tipo` | `character varying` | YES |  |
+| `referencia_id` | `bigint` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
+| `observacao` | `text` | YES |  |
 
 **Constraints**
 
@@ -948,18 +930,18 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.movimentacoes_insumos`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `apresentacao_insumo_id` | `bigint`                   |   NO |         |
-| `tipo`                   | `character varying`        |   NO |         |
-| `quantidade`             | `integer`                  |   NO |         |
-| `sentido`                | `smallint`                 |   NO |         |
-| `referencia_tipo`        | `character varying`        |  YES |         |
-| `referencia_id`          | `bigint`                   |  YES |         |
-| `usuario_id`             | `bigint`                   |   NO |         |
-| `ocorrido_em`            | `timestamp with time zone` |   NO | now()   |
-| `observacao`             | `text`                     |  YES |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `quantidade` | `integer` | NO |  |
+| `sentido` | `smallint` | NO |  |
+| `referencia_tipo` | `character varying` | YES |  |
+| `referencia_id` | `bigint` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
+| `observacao` | `text` | YES |  |
 
 **Constraints**
 
@@ -977,15 +959,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.perdas_estoque`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `apresentacao_insumo_id` | `bigint`                   |   NO |         |
-| `quantidade`             | `integer`                  |   NO |         |
-| `motivo_perda_id`        | `bigint`                   |   NO |         |
-| `observacao`             | `text`                     |  YES |         |
-| `usuario_id`             | `bigint`                   |   NO |         |
-| `ocorrido_em`            | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade` | `integer` | NO |  |
+| `motivo_perda_id` | `bigint` | NO |  |
+| `observacao` | `text` | YES |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1001,13 +983,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.perfis`
 
-| Coluna      | Tipo                | Nulo | Default |
-| ----------- | ------------------- | ---: | ------- |
-| `id`        | `bigint`            |   NO |         |
-| `codigo`    | `character varying` |   NO |         |
-| `nome`      | `character varying` |   NO |         |
-| `descricao` | `text`              |  YES |         |
-| `ativo`     | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `descricao` | `text` | YES |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -1021,10 +1003,10 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.perfis_permissoes`
 
-| Coluna         | Tipo     | Nulo | Default |
-| -------------- | -------- | ---: | ------- |
-| `perfil_id`    | `bigint` |   NO |         |
-| `permissao_id` | `bigint` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `perfil_id` | `bigint` | NO |  |
+| `permissao_id` | `bigint` | NO |  |
 
 **Constraints**
 
@@ -1038,11 +1020,11 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.permissoes`
 
-| Coluna      | Tipo                | Nulo | Default |
-| ----------- | ------------------- | ---: | ------- |
-| `id`        | `bigint`            |   NO |         |
-| `codigo`    | `character varying` |   NO |         |
-| `descricao` | `text`              |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `descricao` | `text` | NO |  |
 
 **Constraints**
 
@@ -1056,18 +1038,18 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.pessoas`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `nome_completo`          | `character varying`        |   NO |         |
-| `nome_normalizado`       | `character varying`        |   NO |         |
-| `data_nascimento`        | `date`                     |  YES |         |
-| `telefone`               | `character varying`        |  YES |         |
-| `observacao_operacional` | `text`                     |  YES |         |
-| `observacao_restrita`    | `text`                     |  YES |         |
-| `ativo`                  | `boolean`                  |   NO | true    |
-| `criado_em`              | `timestamp with time zone` |   NO | now()   |
-| `atualizado_em`          | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `nome_completo` | `character varying` | NO |  |
+| `nome_normalizado` | `character varying` | NO |  |
+| `data_nascimento` | `date` | YES |  |
+| `telefone` | `character varying` | YES |  |
+| `observacao_operacional` | `text` | YES |  |
+| `observacao_restrita` | `text` | YES |  |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1080,15 +1062,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.pessoas_arquivos`
 
-| Coluna                | Tipo                       | Nulo | Default |
-| --------------------- | -------------------------- | ---: | ------- |
-| `id`                  | `bigint`                   |   NO |         |
-| `pessoa_id`           | `bigint`                   |   NO |         |
-| `arquivo_id`          | `bigint`                   |   NO |         |
-| `tipo`                | `character varying`        |   NO |         |
-| `principal`           | `boolean`                  |   NO | false   |
-| `usuario_cadastro_id` | `bigint`                   |  YES |         |
-| `criado_em`           | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | NO |  |
+| `arquivo_id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `principal` | `boolean` | NO | false |
+| `usuario_cadastro_id` | `bigint` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1106,17 +1088,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.pessoas_documentos`
 
-| Coluna               | Tipo                       | Nulo | Default |
-| -------------------- | -------------------------- | ---: | ------- |
-| `id`                 | `bigint`                   |   NO |         |
-| `pessoa_id`          | `bigint`                   |   NO |         |
-| `tipo_documento_id`  | `bigint`                   |   NO |         |
-| `numero`             | `character varying`        |   NO |         |
-| `numero_normalizado` | `character varying`        |   NO |         |
-| `arquivo_id`         | `bigint`                   |  YES |         |
-| `principal`          | `boolean`                  |   NO | false   |
-| `ativo`              | `boolean`                  |   NO | true    |
-| `criado_em`          | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | NO |  |
+| `tipo_documento_id` | `bigint` | NO |  |
+| `numero` | `character varying` | NO |  |
+| `numero_normalizado` | `character varying` | NO |  |
+| `arquivo_id` | `bigint` | YES |  |
+| `principal` | `boolean` | NO | false |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1135,22 +1117,22 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.pessoas_enderecos`
 
-| Coluna          | Tipo                       | Nulo | Default |
-| --------------- | -------------------------- | ---: | ------- |
-| `id`            | `bigint`                   |   NO |         |
-| `pessoa_id`     | `bigint`                   |   NO |         |
-| `cep`           | `character varying`        |  YES |         |
-| `logradouro`    | `character varying`        |  YES |         |
-| `numero`        | `character varying`        |  YES |         |
-| `complemento`   | `character varying`        |  YES |         |
-| `bairro`        | `character varying`        |  YES |         |
-| `cidade`        | `character varying`        |  YES |         |
-| `uf`            | `character`                |  YES |         |
-| `referencia`    | `text`                     |  YES |         |
-| `principal`     | `boolean`                  |   NO | false   |
-| `ativo`         | `boolean`                  |   NO | true    |
-| `criado_em`     | `timestamp with time zone` |   NO | now()   |
-| `atualizado_em` | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | NO |  |
+| `cep` | `character varying` | YES |  |
+| `logradouro` | `character varying` | YES |  |
+| `numero` | `character varying` | YES |  |
+| `complemento` | `character varying` | YES |  |
+| `bairro` | `character varying` | YES |  |
+| `cidade` | `character varying` | YES |  |
+| `uf` | `character` | YES |  |
+| `referencia` | `text` | YES |  |
+| `principal` | `boolean` | NO | false |
+| `ativo` | `boolean` | NO | true |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1164,12 +1146,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.planejamentos_cesta`
 
-| Coluna            | Tipo                       | Nulo | Default |
-| ----------------- | -------------------------- | ---: | ------- |
-| `id`              | `bigint`                   |   NO |         |
-| `competencia_id`  | `bigint`                   |   NO |         |
-| `modelo_cesta_id` | `bigint`                   |   NO |         |
-| `criado_em`       | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `competencia_id` | `bigint` | NO |  |
+| `modelo_cesta_id` | `bigint` | NO |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1185,17 +1167,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.planejamentos_cesta_versoes`
 
-| Coluna                  | Tipo                       | Nulo | Default                        |
-| ----------------------- | -------------------------- | ---: | ------------------------------ |
-| `id`                    | `bigint`                   |   NO |                                |
-| `planejamento_cesta_id` | `bigint`                   |   NO |                                |
-| `numero_versao`         | `integer`                  |   NO |                                |
-| `quantidade_planejada`  | `integer`                  |   NO |                                |
-| `status`                | `character varying`        |   NO | 'SIMULACAO'::character varying |
-| `usuario_aprovador_id`  | `bigint`                   |  YES |                                |
-| `aprovado_em`           | `timestamp with time zone` |  YES |                                |
-| `motivo_revisao`        | `text`                     |  YES |                                |
-| `criado_em`             | `timestamp with time zone` |   NO | now()                          |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `planejamento_cesta_id` | `bigint` | NO |  |
+| `numero_versao` | `integer` | NO |  |
+| `quantidade_planejada` | `integer` | NO |  |
+| `status` | `character varying` | NO | 'SIMULACAO'::character varying |
+| `usuario_aprovador_id` | `bigint` | YES |  |
+| `aprovado_em` | `timestamp with time zone` | YES |  |
+| `motivo_revisao` | `text` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1214,12 +1196,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.planejamentos_cesta_versoes_itens`
 
-| Coluna                   | Tipo      | Nulo | Default |
-| ------------------------ | --------- | ---: | ------- |
-| `id`                     | `bigint`  |   NO |         |
-| `planejamento_versao_id` | `bigint`  |   NO |         |
-| `apresentacao_insumo_id` | `bigint`  |   NO |         |
-| `quantidade_por_cesta`   | `integer` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `planejamento_versao_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade_por_cesta` | `integer` | NO |  |
 
 **Constraints**
 
@@ -1236,16 +1218,16 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.reservas_insumos`
 
-| Coluna                   | Tipo                       | Nulo | Default |
-| ------------------------ | -------------------------- | ---: | ------- |
-| `id`                     | `bigint`                   |   NO |         |
-| `planejamento_versao_id` | `bigint`                   |   NO |         |
-| `apresentacao_insumo_id` | `bigint`                   |   NO |         |
-| `quantidade_reservada`   | `integer`                  |   NO |         |
-| `quantidade_consumida`   | `integer`                  |   NO | 0       |
-| `quantidade_liberada`    | `integer`                  |   NO | 0       |
-| `criado_em`              | `timestamp with time zone` |   NO | now()   |
-| `atualizado_em`          | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `planejamento_versao_id` | `bigint` | NO |  |
+| `apresentacao_insumo_id` | `bigint` | NO |  |
+| `quantidade_reservada` | `integer` | NO |  |
+| `quantidade_consumida` | `integer` | NO | 0 |
+| `quantidade_liberada` | `integer` | NO | 0 |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1265,17 +1247,17 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.retiradas`
 
-| Coluna                 | Tipo                       | Nulo | Default                     |
-| ---------------------- | -------------------------- | ---: | --------------------------- |
-| `id`                   | `bigint`                   |   NO |                             |
-| `direito_beneficio_id` | `bigint`                   |   NO |                             |
-| `distribuicao_id`      | `bigint`                   |   NO |                             |
-| `beneficiario_id`      | `bigint`                   |   NO |                             |
-| `tipo`                 | `character varying`        |   NO |                             |
-| `status`               | `character varying`        |   NO | 'VALIDA'::character varying |
-| `forma_identificacao`  | `character varying`        |  YES |                             |
-| `usuario_operador_id`  | `bigint`                   |   NO |                             |
-| `ocorrido_em`          | `timestamp with time zone` |   NO | now()                       |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `direito_beneficio_id` | `bigint` | NO |  |
+| `distribuicao_id` | `bigint` | NO |  |
+| `beneficiario_id` | `bigint` | NO |  |
+| `tipo` | `character varying` | NO |  |
+| `status` | `character varying` | NO | 'VALIDA'::character varying |
+| `forma_identificacao` | `character varying` | YES |  |
+| `usuario_operador_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1296,13 +1278,13 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.retiradas_estornos`
 
-| Coluna        | Tipo                       | Nulo | Default |
-| ------------- | -------------------------- | ---: | ------- |
-| `id`          | `bigint`                   |   NO |         |
-| `retirada_id` | `bigint`                   |   NO |         |
-| `motivo`      | `text`                     |   NO |         |
-| `usuario_id`  | `bigint`                   |   NO |         |
-| `ocorrido_em` | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `retirada_id` | `bigint` | NO |  |
+| `motivo` | `text` | NO |  |
+| `usuario_id` | `bigint` | NO |  |
+| `ocorrido_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1316,15 +1298,15 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.retiradas_representantes`
 
-| Coluna                     | Tipo                | Nulo | Default |
-| -------------------------- | ------------------- | ---: | ------- |
-| `id`                       | `bigint`            |   NO |         |
-| `retirada_id`              | `bigint`            |   NO |         |
-| `pessoa_representante_id`  | `bigint`            |  YES |         |
-| `nome`                     | `character varying` |   NO |         |
-| `documento`                | `character varying` |  YES |         |
-| `relacao`                  | `character varying` |  YES |         |
-| `autorizacao_declaratoria` | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `retirada_id` | `bigint` | NO |  |
+| `pessoa_representante_id` | `bigint` | YES |  |
+| `nome` | `character varying` | NO |  |
+| `documento` | `character varying` | YES |  |
+| `relacao` | `character varying` | YES |  |
+| `autorizacao_declaratoria` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -1340,12 +1322,12 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.tipos_documento`
 
-| Coluna   | Tipo                | Nulo | Default |
-| -------- | ------------------- | ---: | ------- |
-| `id`     | `bigint`            |   NO |         |
-| `codigo` | `character varying` |   NO |         |
-| `nome`   | `character varying` |   NO |         |
-| `ativo`  | `boolean`           |   NO | true    |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `codigo` | `character varying` | NO |  |
+| `nome` | `character varying` | NO |  |
+| `ativo` | `boolean` | NO | true |
 
 **Constraints**
 
@@ -1359,16 +1341,16 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.usuarios`
 
-| Coluna            | Tipo                       | Nulo | Default |
-| ----------------- | -------------------------- | ---: | ------- |
-| `id`              | `bigint`                   |   NO |         |
-| `pessoa_id`       | `bigint`                   |  YES |         |
-| `login`           | `character varying`        |   NO |         |
-| `senha_hash`      | `character varying`        |   NO |         |
-| `ativo`           | `boolean`                  |   NO | true    |
-| `ultimo_login_em` | `timestamp with time zone` |  YES |         |
-| `criado_em`       | `timestamp with time zone` |   NO | now()   |
-| `atualizado_em`   | `timestamp with time zone` |   NO | now()   |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `id` | `bigint` | NO |  |
+| `pessoa_id` | `bigint` | YES |  |
+| `login` | `character varying` | NO |  |
+| `senha_hash` | `character varying` | NO |  |
+| `ativo` | `boolean` | NO | true |
+| `ultimo_login_em` | `timestamp with time zone` | YES |  |
+| `criado_em` | `timestamp with time zone` | NO | now() |
+| `atualizado_em` | `timestamp with time zone` | NO | now() |
 
 **Constraints**
 
@@ -1385,10 +1367,10 @@ Credenciais e endereço do servidor foram deliberadamente omitidos.
 
 ### `pastoral.usuarios_perfis`
 
-| Coluna       | Tipo     | Nulo | Default |
-| ------------ | -------- | ---: | ------- |
-| `usuario_id` | `bigint` |   NO |         |
-| `perfil_id`  | `bigint` |   NO |         |
+| Coluna | Tipo | Nulo | Default |
+|---|---|---:|---|
+| `usuario_id` | `bigint` | NO |  |
+| `perfil_id` | `bigint` | NO |  |
 
 **Constraints**
 
@@ -1512,19 +1494,3 @@ Foram encontradas 67 funções pertencentes a extensões (por exemplo, pgcrypto/
 - Datas civis (`date`) devem permanecer strings `YYYY-MM-DD`; timestamps são `timestamptz`.
 - Funções transacionais próprias devem ser chamadas com o schema explicitamente qualificado.
 - A inspeção não executou DDL nem alterou dados.
-
-## Divergências observadas em validação
-
-- `pastoral.trg_pessoas_normalizacao()` chama `fn_normalizar_texto(...)` sem qualificação. Uma inserção em `pastoral.pessoas` falha quando a sessão não possui `pastoral` no `search_path`. A API continua usando nomes qualificados; o banco não foi alterado. Recomenda-se corrigir futuramente o corpo do trigger para `pastoral.fn_normalizar_texto(...)` por migration incremental.
-- Não existem funções próprias para admissão, desligamento, reativação, alteração de grupo ou capacidade. Nesta etapa essas operações foram implementadas com transações e locks explícitos nos adapters PostgreSQL.
-- Migration `20260830_001_qualify_pessoas_normalization_function.sql` aplicada: o trigger agora chama `pastoral.fn_normalizar_texto`. Um INSERT com `search_path = pg_catalog, public` foi validado com rollback.
-- `pastoral.gerar_competencia` foi confirmada como idempotente por `ON CONFLICT` para competência, distribuições e direitos. Como seu corpo usa referências não qualificadas, o adapter define `SET LOCAL search_path TO pastoral,public` antes da chamada.
-- `pastoral.abrir_distribuicao` é reutilizada com `SET LOCAL search_path`; segunda abertura vira conflito `DISTRIBUICAO_JA_ABERTA`.
-- `fn_beneficiario_tem_pendencia_anterior` considera somente estados do direito. Para a triagem, o adapter também consulta `ausencias.status`, distinguindo justificativa aceita, pendente e rejeitada.
-- `registrar_retirada` e `estornar_retirada` são agora reutilizadas pela API e acoplam atomicamente retirada/estorno à entrega física e às cestas liberadas.
-- `uq_retirada_valida_direito` permanece como garantia final contra duas retiradas válidas concorrentes.
-- Não existe permissão específica para antecipação. Provisoriamente a API exige `RETIRADA_ESTORNAR_QUALQUER`, justificativa e auditoria, sem criar outro direito; uma permissão semântica própria depende de decisão futura de schema/RBAC.
-- A migration `20260830_002_consider_justified_absence.sql` ajusta `fn_beneficiario_tem_pendencia_anterior` para considerar `ausencias.status = JUSTIFICADA`, permitindo que `registrar_retirada` seja reutilizada após regularização.
-- `inventarios_itens.diferenca` é coluna gerada (`saldo_fisico - saldo_sistema`), embora o mapeamento anterior não registrasse `is_generated`; a API nunca escreve nessa coluna.
-- Entrada, perda, conclusão de inventário, aprovação, montagem, liberação, retirada e estorno delegam às funções PostgreSQL correspondentes.
-- Desmontagem e ajuste não possuem função própria no schema e usam transações explícitas com locks, snapshots e movimentações imutáveis.

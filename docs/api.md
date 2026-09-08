@@ -75,7 +75,7 @@ A fila ordena prioridade excepcional, entrada e ID. A geração usa `pastoral.ge
 - `GET /api/v1/beneficiarios?nome=&documento=&status=&grupoId=` — busca operacional com documentos mascarados.
 - `POST /api/v1/distribuicoes/:id/abrir` — exige `DISTRIBUICAO_ABRIR`; segunda abertura retorna conflito.
 - `POST /api/v1/distribuicoes/:id/check-ins` — exige `DISTRIBUICAO_TRIAGEM` e calcula a classificação.
-- `GET /api/v1/distribuicoes/:id/check-ins?classificacao=REGULAR|PENDENTE` — filas ordenadas por chegada e ID.
+- `GET /api/v1/distribuicoes/:id/check-ins?classificacao=REGULAR|PENDENTE&situacao=AGUARDANDO|ATENDIDO|NAO_ATENDIDO_ESTOQUE|NAO_ATENDIDO_IRREGULARIDADE` — histórico de check-ins ordenado por chegada e ID. Sem `situacao`, inclui atendidos e não atendidos; para a fila operacional, o frontend deve enviar `situacao=AGUARDANDO`. Cada item expõe `situacaoOperacional`, `podeRetirar` e `motivoBloqueio`; assim a UI não precisa interpretar pendências nem inferir a prioridade. `classificacao` é a classificação inicial imutável e `fila` é a prioridade (`PRINCIPAL`/`SECUNDARIA`), não um indicador de que ainda aguarda. Retirada válida produz `ATENDIDO`; seu estorno restaura `AGUARDANDO`. Direito previsto para outra distribuição produz `podeRetirar=false`/`motivoBloqueio=DIREITO_NAO_DISPONIVEL` e não bloqueia a fila secundária. Após encerramento, os resultados reais existentes são expostos como `NAO_ATENDIDO_ESTOQUE` ou `NAO_ATENDIDO_IRREGULARIDADE`.
 
 ## Justificativas e retiradas
 
@@ -85,6 +85,14 @@ A fila ordena prioridade excepcional, entrada e ID. A geração usa `pastoral.ge
 - `GET /api/v1/distribuicoes/:id/retiradas` — filtros `beneficiarioId`, `tipo` e `status`.
 - `GET /api/v1/retiradas/:id` — retorna beneficiário, operador, horário, status e representante mascarado.
 - `POST /api/v1/retiradas/:id/estornar` — exige motivo e decide dinamicamente a permissão necessária.
+
+## Cestas adicionais
+
+- `POST /api/v1/distribuicoes/:id/cestas-adicionais` — autoriza uma cesta adicional com `beneficiarioId`, `modeloCestaId`, `quantidade` positiva e `justificativa`; exige `CESTA_ADICIONAL_AUTORIZAR` e retorna o read model em estado `AUTORIZADA`.
+- `GET /api/v1/distribuicoes/:id/cestas-adicionais` — lista autorizações e entregas da distribuição; exige `RETIRADA_REGISTRAR`.
+- `POST /api/v1/cestas-adicionais/:id/entregar` — entrega uma autorização e retorna o read model em estado `ENTREGUE`; exige `RETIRADA_REGISTRAR`. A função `pastoral.entregar_cesta_adicional` valida o estado `AUTORIZADA`, distribuição aberta, disponibilidade física e realiza o consumo transacional.
+
+O read model contém beneficiário, distribuição, modelo, quantidade, justificativa, estado, autorizador e dados opcionais da entrega. `CANCELADA` permanece reconhecido como estado histórico do banco, mas não há endpoint de cancelamento porque nenhuma operação de domínio correspondente existe atualmente.
 
 Tipos reais: `TITULAR`, `REPRESENTANTE`, `PRIMEIRA_ENTREGA`, `ANTECIPADA` e `CONTINGENCIA`. A antecipação exige justificativa e, enquanto não existe permissão específica, usa `RETIRADA_ESTORNAR_QUALQUER` como indicador temporário de autoridade superior.
 
@@ -97,6 +105,8 @@ Tipos reais: `TITULAR`, `REPRESENTANTE`, `PRIMEIRA_ENTREGA`, `ANTECIPADA` e `CON
 - Modelos imutáveis: `GET/POST /api/v1/cestas/modelos`, detalhe e `POST /:id/versoes`.
 - Planejamento: simulação, criação, listagem, detalhe, aprovação e revisões em `/api/v1/planejamentos`.
 - Montagem: `GET/POST /api/v1/estoque/lotes-montagem`, detalhe, desmontagem e ajustes.
+
+Montagem retorna composição efetiva em `itens[].quantidadeTotal`; `quantidadePorCesta` é média informativa, não uma composição individual após ajustes. Flags operacionais `possuiAjustes`, `permiteDesmontagemParcial`, `podeAjustar` e `podeDesmontar` complementam o contrato sem substituir permissões. Qualquer ajuste bloqueia desmontagem parcial com `409 LOTE_AJUSTADO_DESMONTAGEM_PARCIAL`; a integral devolve exatamente o total efetivo e exige todas as cestas disponíveis. Ajuste com cestas indisponíveis retorna `409 LOTE_AJUSTE_CESTAS_INDISPONIVEIS`. Detalhes e migration em [lote-composition-fix.md](lote-composition-fix.md).
 - Liberação: `GET/POST /api/v1/distribuicoes/:id/liberacoes-cestas`.
 
 A retirada agora exige cesta liberada e registra entrega física. O atendente continua sem escolher lote: o banco consome por `liberado_em`, `id`.

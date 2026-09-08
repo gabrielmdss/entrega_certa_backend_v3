@@ -120,6 +120,180 @@ export const openApiDocument = {
         required: ["data"],
         properties: { data: {} },
       },
+      LoteMontagem: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          quantidadeMontada: { type: "integer", minimum: 0 },
+          quantidadeDisponivel: { type: "integer", minimum: 0 },
+          status: { type: "string", enum: ["ATIVO", "ESGOTADO", "DESMONTADO"] },
+          montadoEm: { type: "string", format: "date-time" },
+          planejamento: { type: "object" },
+          responsavel: { type: "object" },
+          possuiAjustes: { type: "boolean" },
+          permiteDesmontagemParcial: {
+            type: "boolean",
+            description:
+              "Falso se existe qualquer ajuste. Não substitui podeDesmontar nem RBAC.",
+          },
+          podeAjustar: {
+            type: "boolean",
+            description:
+              "Estado operacional; requer também CESTA_AJUSTAR_LOTE.",
+          },
+          podeDesmontar: {
+            type: "boolean",
+            description: "Estado operacional; requer também CESTA_DESMONTAR.",
+          },
+          itens: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                apresentacaoInsumoId: { type: "string" },
+                quantidadeTotal: {
+                  type: "integer",
+                  description:
+                    "Total efetivo atribuído ao lote, já descontadas remoções e desmontagens.",
+                },
+                quantidadePorCesta: {
+                  type: "number",
+                  description:
+                    "Média informativa do total por quantidade montada. Nunca usada para inferir devolução parcial de lote ajustado.",
+                },
+              },
+            },
+          },
+        },
+      },
+      CheckIn: {
+        type: "object",
+        required: [
+          "id",
+          "beneficiario",
+          "classificacao",
+          "fila",
+          "situacaoOperacional",
+          "podeRetirar",
+          "motivoBloqueio",
+          "pendencias",
+          "ocorridoEm",
+        ],
+        properties: {
+          id: { type: "string" },
+          beneficiario: {
+            type: "object",
+            required: ["id", "nomeCompleto"],
+            properties: {
+              id: { type: "string" },
+              nomeCompleto: { type: "string" },
+            },
+          },
+          classificacao: { type: "string", enum: ["REGULAR", "PENDENTE"] },
+          fila: { type: "string", enum: ["PRINCIPAL", "SECUNDARIA"] },
+          situacaoOperacional: {
+            type: "string",
+            enum: [
+              "AGUARDANDO",
+              "ATENDIDO",
+              "NAO_ATENDIDO_ESTOQUE",
+              "NAO_ATENDIDO_IRREGULARIDADE",
+            ],
+          },
+          podeRetirar: {
+            type: "boolean",
+            description:
+              "Aptidão atual para registrar retirada, incluindo direito nesta distribuição, pendências e prioridade da fila.",
+          },
+          motivoBloqueio: {
+            type: ["string", "null"],
+            description:
+              "Código da validação que impede a retirada, quando podeRetirar é false.",
+          },
+          pendencias: { type: "array", items: { type: "object" } },
+          ocorridoEm: { type: "string", format: "date-time" },
+        },
+      },
+      CestaAdicional: {
+        type: "object",
+        required: [
+          "id",
+          "beneficiario",
+          "distribuicaoId",
+          "modeloCesta",
+          "quantidade",
+          "justificativa",
+          "status",
+          "autorizador",
+          "autorizadoEm",
+          "entrega",
+        ],
+        properties: {
+          id: { type: "string" },
+          beneficiario: {
+            type: "object",
+            required: ["id", "nomeCompleto"],
+            properties: {
+              id: { type: "string" },
+              nomeCompleto: { type: "string" },
+            },
+          },
+          distribuicaoId: { type: "string" },
+          modeloCesta: {
+            type: "object",
+            required: ["id", "nome"],
+            properties: { id: { type: "string" }, nome: { type: "string" } },
+          },
+          quantidade: { type: "integer", minimum: 1 },
+          justificativa: { type: "string" },
+          status: {
+            type: "string",
+            enum: ["AUTORIZADA", "ENTREGUE", "CANCELADA"],
+          },
+          autorizador: {
+            type: "object",
+            required: ["id", "login"],
+            properties: { id: { type: "string" }, login: { type: "string" } },
+          },
+          autorizadoEm: { type: "string", format: "date-time" },
+          entrega: {
+            oneOf: [
+              { type: "null" },
+              {
+                type: "object",
+                required: ["usuario", "entregueEm"],
+                properties: {
+                  usuario: {
+                    type: "object",
+                    required: ["id", "login"],
+                    properties: {
+                      id: { type: "string" },
+                      login: { type: "string" },
+                    },
+                  },
+                  entregueEm: { type: "string", format: "date-time" },
+                },
+              },
+            ],
+          },
+        },
+      },
+      AutorizarCestaAdicionalInput: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "beneficiarioId",
+          "modeloCestaId",
+          "quantidade",
+          "justificativa",
+        ],
+        properties: {
+          beneficiarioId: { type: "string", pattern: "^\\d+$" },
+          modeloCestaId: { type: "string", pattern: "^\\d+$" },
+          quantidade: { type: "integer", minimum: 1 },
+          justificativa: { type: "string", minLength: 1 },
+        },
+      },
       DocumentMasked: {
         type: "object",
         required: ["tipo", "numeroMascarado"],
@@ -376,7 +550,35 @@ export const openApiDocument = {
       "get",
       "Histórico assistencial",
       "BENEFICIARIO_VISUALIZAR",
-      { parameters: [id] },
+      {
+        parameters: [id],
+        response: {
+          type: "object",
+          properties: {
+            data: {
+              type: "object",
+              properties: {
+                beneficiario: { type: "object" },
+                eventos: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      tipo: { type: "string" },
+                      ocorridoEm: { type: "string", format: "date-time" },
+                      detalhes: {
+                        type: "object",
+                        description:
+                          "Em JUSTIFICATIVA contém justificativaId, ausenciaId, decisao e momento.",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     ),
     "/api/v1/candidaturas": {
       get: operation(
@@ -473,8 +675,35 @@ export const openApiDocument = {
       "DISTRIBUICAO_REMARCAR",
     ),
     "/api/v1/distribuicoes/{id}/check-ins": {
-      get: operation("Listar check-ins", "DISTRIBUICAO_TRIAGEM", {
-        parameters: [id],
+      get: operation("Listar histórico de check-ins", "DISTRIBUICAO_TRIAGEM", {
+        description:
+          "Sem situacao, retorna o histórico completo. Use situacao=AGUARDANDO para a fila operacional atual. classificacao e fila preservam a classificação inicial e não indicam atendimento.",
+        parameters: [
+          id,
+          {
+            name: "classificacao",
+            in: "query",
+            schema: { type: "string", enum: ["REGULAR", "PENDENTE"] },
+          },
+          {
+            name: "situacao",
+            in: "query",
+            schema: {
+              type: "string",
+              enum: [
+                "AGUARDANDO",
+                "ATENDIDO",
+                "NAO_ATENDIDO_ESTOQUE",
+                "NAO_ATENDIDO_IRREGULARIDADE",
+              ],
+            },
+          },
+        ],
+        response: {
+          type: "object",
+          required: ["data"],
+          properties: { data: { type: "array", items: ref("CheckIn") } },
+        },
       }),
       post: operation("Registrar check-in", "DISTRIBUICAO_TRIAGEM", {
         status: 201,
@@ -491,6 +720,54 @@ export const openApiDocument = {
         parameters: [id],
         request: { type: "object", additionalProperties: true },
       }),
+    },
+    "/api/v1/distribuicoes/{id}/cestas-adicionais": {
+      get: operation(
+        "Listar cestas adicionais da distribuição",
+        "RETIRADA_REGISTRAR",
+        {
+          parameters: [id],
+          response: {
+            type: "object",
+            required: ["data"],
+            properties: {
+              data: { type: "array", items: ref("CestaAdicional") },
+            },
+          },
+        },
+      ),
+      post: operation(
+        "Autorizar cesta adicional",
+        "CESTA_ADICIONAL_AUTORIZAR",
+        {
+          status: 201,
+          parameters: [id],
+          request: ref("AutorizarCestaAdicionalInput"),
+          response: {
+            type: "object",
+            required: ["data"],
+            properties: { data: ref("CestaAdicional") },
+          },
+          description:
+            "Cria uma autorização. Erros de domínio: DISTRIBUICAO_NAO_ENCONTRADA, BENEFICIARIO_NAO_ENCONTRADO, BENEFICIARIO_DESLIGADO, MODELO_CESTA_NAO_ENCONTRADO e MODELO_CESTA_INATIVO.",
+        },
+      ),
+    },
+    "/api/v1/cestas-adicionais/{id}/entregar": {
+      post: operation(
+        "Entregar cesta adicional autorizada",
+        "RETIRADA_REGISTRAR",
+        {
+          parameters: [id],
+          response: {
+            type: "object",
+            required: ["data"],
+            properties: { data: ref("CestaAdicional") },
+          },
+          description:
+            "Delega a transição e o consumo físico a pastoral.entregar_cesta_adicional. Erros: CESTA_ADICIONAL_NAO_ENCONTRADA, CESTA_ADICIONAL_NAO_AUTORIZADA, DISTRIBUICAO_NAO_ABERTA, SEM_CESTA_DISPONIVEL e ENTREGA_CESTA_ADICIONAL_INVALIDA.",
+        },
+      ),
     },
     "/api/v1/distribuicoes/{id}/liberacoes-cestas": {
       get: operation("Listar liberações", "ESTOQUE_VISUALIZAR", {
@@ -585,7 +862,12 @@ export const openApiDocument = {
       "ESTOQUE_INVENTARIO",
     ),
     "/api/v1/estoque/lotes-montagem": {
-      get: operation("Listar lotes", "ESTOQUE_VISUALIZAR"),
+      get: operation("Listar lotes", "ESTOQUE_VISUALIZAR", {
+        response: {
+          type: "object",
+          properties: { data: { type: "array", items: ref("LoteMontagem") } },
+        },
+      }),
       post: operation("Montar cestas", "CESTA_MONTAR", {
         status: 201,
         request: { type: "object", additionalProperties: true },
@@ -595,15 +877,46 @@ export const openApiDocument = {
       "get",
       "Detalhar lote",
       "ESTOQUE_VISUALIZAR",
-      { parameters: [id] },
+      {
+        parameters: [id],
+        response: {
+          type: "object",
+          properties: {
+            data: { anyOf: [ref("LoteMontagem"), { type: "null" }] },
+          },
+        },
+      },
     ),
-    "/api/v1/estoque/lotes-montagem/{id}/desmontar": mutation(
+    "/api/v1/estoque/lotes-montagem/{id}/desmontar": path(
+      "post",
       "Desmontar cestas",
       "CESTA_DESMONTAR",
+      {
+        parameters: [id],
+        status: 204,
+        description:
+          "Qualquer ajuste impede desmontagem parcial: 409 LOTE_AJUSTADO_DESMONTAGEM_PARCIAL. A integral exige todas as cestas disponíveis e devolve o total efetivo.",
+        request: {
+          type: "object",
+          required: ["quantidade", "motivo"],
+          properties: {
+            quantidade: { type: "integer", minimum: 1 },
+            motivo: { type: "string", minLength: 1 },
+          },
+        },
+      },
     ),
     "/api/v1/estoque/lotes-montagem/{id}/ajustes": mutation(
       "Ajustar lote",
       "CESTA_AJUSTAR_LOTE",
+      [id],
+      {
+        type: "object",
+        additionalProperties: true,
+        description:
+          "QuantidadeCestasAfetadas e itens positivos; todas as cestas devem estar disponíveis. Caso contrário: 409 LOTE_AJUSTE_CESTAS_INDISPONIVEIS.",
+      },
+      201,
     ),
     "/api/v1/doadores": {
       get: operation("Listar doadores", "ESTOQUE_VISUALIZAR"),

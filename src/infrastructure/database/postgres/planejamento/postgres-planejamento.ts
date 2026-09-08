@@ -186,6 +186,7 @@ export class PostgresPlanejamento implements PlanejamentoPort {
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      await c.query("SELECT pastoral.bloquear_estoque()");
       const r = await op(c);
       await c.query("COMMIT");
       return r;

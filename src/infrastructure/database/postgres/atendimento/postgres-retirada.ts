@@ -171,6 +171,11 @@ export class PostgresRetirada
     const c = await this.pool.connect();
     try {
       await c.query("BEGIN");
+      // Mesma ordem do encerramento: distribuição antes da retirada/direito.
+      await c.query(
+        "SELECT d.id FROM pastoral.distribuicoes d JOIN pastoral.retiradas r ON r.distribuicao_id=d.id WHERE r.id=$1 FOR UPDATE OF d",
+        [i.retiradaId],
+      );
       const r = (
         await c.query<{ status: string; direito_id: string }>(
           "SELECT status,direito_beneficio_id::text direito_id FROM pastoral.retiradas WHERE id=$1 FOR UPDATE",
@@ -262,7 +267,7 @@ async function regularsWaiting(c: PoolClient, did: string, cid: string) {
   return (
     (
       await c.query(
-        `SELECT 1 FROM pastoral.distribuicoes_checkins ci JOIN pastoral.direitos_beneficio db ON db.beneficiario_id=ci.beneficiario_id AND db.competencia_id=$2 AND db.tipo='REGULAR' WHERE ci.distribuicao_id=$1 AND ci.classificacao_inicial='REGULAR' AND db.status='DISPONIVEL' LIMIT 1`,
+        `SELECT 1 FROM pastoral.distribuicoes_checkins ci JOIN pastoral.direitos_beneficio db ON db.beneficiario_id=ci.beneficiario_id AND db.competencia_id=$2 AND db.tipo='REGULAR' WHERE ci.distribuicao_id=$1 AND ci.classificacao_inicial='REGULAR' AND db.status='DISPONIVEL' AND db.distribuicao_prevista_id=ci.distribuicao_id AND NOT EXISTS(SELECT 1 FROM pastoral.retiradas r WHERE r.distribuicao_id=ci.distribuicao_id AND r.beneficiario_id=ci.beneficiario_id AND r.status='VALIDA') LIMIT 1`,
         [did, cid],
       )
     ).rowCount !== 0

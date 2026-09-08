@@ -24,9 +24,12 @@ Alguns recursos não possuem endpoint de criação/listagem apropriado para prod
 - `candidaturaPessoaId`: outra pessoa elegível para candidatura.
 - `motivoDesligamentoId` e `motivoPerdaId`: IDs existentes no banco.
 - `grupoAId` e `grupoBId`: vêm com os valores estruturais locais `1` e `2`; ajuste em outro ambiente.
+- `beneficiarioOutraDistribuicaoId`: beneficiário com check-in na distribuição testada e direito disponível previsto para a outra distribuição; valida `DIREITO_NAO_DISPONIVEL` sem bloquear indevidamente a fila secundária.
 - IDs dos cenários negativos (`distribuicaoSemCestaId`, `beneficiarioSemCestaId`, `distribuicaoEncerradaId`) devem apontar para fixtures adequadas.
 
 A API atual não implementa endpoints de Pessoas. Por isso a coleção não inventa a pasta/rota `03 - Pessoas` e não consegue criar `pessoaId` via HTTP.
+
+A pasta **10A - Cestas Adicionais** demonstra autorização, listagem, entrega e rejeição de uma segunda entrega. Ela reutiliza `distribuicaoId`, `beneficiarioId` e `modeloCestaId`, salvando o resultado em `cestaAdicionalId`.
 
 ## Uso individual
 

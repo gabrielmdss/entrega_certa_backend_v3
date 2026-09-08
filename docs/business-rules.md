@@ -18,7 +18,11 @@ As regras estruturais e transacionais do schema `pastoral` são a fonte de verda
 
 Quem chegou `PENDENTE`, mesmo regularizado, aguarda todos os presentes inicialmente `REGULAR` que ainda possuem direito disponível. A retirada usa `distribuicao_prevista_id`, permitindo primeira entrega sem alterar o grupo recorrente. O representante declaratório fica vinculado à retirada. O estorno preserva a retirada, cria o evento de estorno, restaura o direito e audita.
 
+Na consulta de check-ins, `classificacao`/`fila` preservam a prioridade de chegada, enquanto `situacaoOperacional`, `podeRetirar` e `motivoBloqueio` são derivados. Uma retirada `VALIDA` significa `ATENDIDO`; sem retirada válida e com direito disponível significa `AGUARDANDO`; o estorno volta a retirada para `ESTORNADA` e restaura `AGUARDANDO`. Só bloqueia a fila secundária o regular presente cujo direito está `DISPONIVEL` e possui `distribuicao_prevista_id` igual à distribuição atual. Check-in regular com `GRUPO_DIFERENTE` permanece no histórico, mas não bloqueia. Check-ins não são removidos do histórico.
+
 ## Estoque físico
+
+Cesta adicional é autorizada separadamente do direito regular, com quantidade e justificativa explícitas. A entrega só ocorre a partir de `AUTORIZADA` e delega a `pastoral.entregar_cesta_adicional` a validação da distribuição aberta, consumo das cestas liberadas e transição para `ENTREGUE`. O estado `CANCELADA` existe na persistência, mas o schema atual não oferece uma operação de cancelamento; por isso ela não foi inventada na API.
 
 - `saldoDisponivel = saldoFisico - saldoReservado`.
 - Reserva não é saída: aprovação mantém o físico e compromete disponibilidade.
@@ -30,6 +34,8 @@ Quem chegou `PENDENTE`, mesmo regularizado, aguarda todos os presentes inicialme
 - `metaItens` é `SUM(quantidade)`: dois pacotes contam como dois itens.
 
 Perda, montagem, ajuste, desmontagem e liberação são serializados sobre os registros relevantes. Constraints e funções impedem quantidades negativas. Reforços de liberação criam novos eventos.
+
+A composição efetiva de um lote é derivada de seus movimentos físicos, mantendo snapshot e ajustes como histórico. Remoção credita somente o que sai do lote; adição debita somente o que entra. Desmontagem devolve o conteúdo efetivo. Qualquer ajuste impede desmontagem parcial; a integral exige todas as cestas disponíveis. Sem ajustes, a parcial usa a composição conhecida por cesta. Lote totalmente desmontado tem quantidades zero e estado DESMONTADO; não aceita novo ajuste/desmontagem. Ajustes exigem todas as cestas disponíveis para não alterar conteúdo de cestas liberadas/entregues sem rastreabilidade individual.
 
 Funções PostgreSQL existentes para operações críticas devem ser chamadas por command ports, sem duplicação em controllers ou transações redundantes. Consulte `database-mapping.md` para as assinaturas reais.
 

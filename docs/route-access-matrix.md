@@ -44,6 +44,9 @@ Na coluna “com token”, `permitido → handler` significa que autenticação 
 | GET | `/api/v1/distribuicoes/:id/check-ins` | `AtendimentoController.listar` | JWT | `DISTRIBUICAO_TRIAGEM` | não | sim | `401` | permitido → handler / `403` |
 | POST | `/api/v1/distribuicoes/:id/retiradas` | `OperacoesAtendimentoController.registrarRetirada` | JWT | `RETIRADA_REGISTRAR` | não | sim | `401` | permitido → handler / `403` |
 | GET | `/api/v1/distribuicoes/:id/retiradas` | `OperacoesAtendimentoController.listarRetiradas` | JWT | `RETIRADA_REGISTRAR` | não | sim | `401` | permitido → handler / `403` |
+| POST | `/api/v1/distribuicoes/:id/cestas-adicionais` | `CestasAdicionaisController.autorizar` | JWT | `CESTA_ADICIONAL_AUTORIZAR` | não | sim | `401` | permitido → handler / `403` |
+| GET | `/api/v1/distribuicoes/:id/cestas-adicionais` | `CestasAdicionaisController.listar` | JWT | `RETIRADA_REGISTRAR` | não | sim | `401` | permitido → handler / `403` |
+| POST | `/api/v1/cestas-adicionais/:id/entregar` | `CestasAdicionaisController.entregar` | JWT | `RETIRADA_REGISTRAR` | não | sim | `401` | permitido → handler / `403` |
 | POST | `/api/v1/distribuicoes/:id/liberacoes-cestas` | `EstoqueController.liberar` | JWT | `CESTA_LIBERAR_DISTRIBUICAO` | não | sim | `401` | permitido → handler / `403` |
 | GET | `/api/v1/distribuicoes/:id/liberacoes-cestas` | `EstoqueController.listarLiberacoes` | JWT | `ESTOQUE_VISUALIZAR` | não | sim | `401` | permitido → handler / `403` |
 | GET | `/api/v1/distribuicoes/:id/historico` | `HistoricosController.distribuicao` | JWT | `BENEFICIARIO_VISUALIZAR` | não | sim | `401` | permitido → handler / `403` |
