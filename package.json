@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration",
-    "database:inspect": "node scripts/inspect-database.mjs --markdown docs/database-mapping.md"
+    "database:inspect": "node scripts/inspect-database.mjs --markdown docs/database-mapping.md",
+    "database:setup": "node scripts/setup-database.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
