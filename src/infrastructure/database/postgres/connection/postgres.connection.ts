@@ -9,6 +9,7 @@ export function createPostgresPool(config: DatabaseConfig): Pool {
     database: config.database,
     user: config.user,
     password: config.password,
+    ssl: config.ssl ? { rejectUnauthorized: false } : undefined,
     max: config.poolMax,
     connectionTimeoutMillis: config.connectionTimeoutMs,
     idleTimeoutMillis: config.idleTimeoutMs,
