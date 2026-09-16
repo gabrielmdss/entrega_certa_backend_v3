@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import type { CriarPessoaInput, PessoaDetail, PessoaListItem, PessoaPort } from "../../../../application/pessoas/ports/pessoa.port.js";
+import type { CriarPessoaInput, FotoPessoa, PessoaDetail, PessoaListItem, PessoaPort, SalvarFotoPessoaInput } from "../../../../application/pessoas/ports/pessoa.port.js";
 import { DomainError } from "../../../../shared/errors/domain-error.js";
 import { maskDocument } from "../../../../shared/utils/mask-document.js";
 
@@ -68,6 +68,47 @@ export class PostgresPessoa implements PessoaPort {
       if (isUnique(error)) throw new DomainError("DOCUMENTO_DUPLICADO", "Documento já cadastrado");
       throw error;
     } finally { client.release(); }
+  }
+
+  async salvarFotoPrincipal(input: SalvarFotoPessoaInput): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const pessoa = await client.query("SELECT 1 FROM pastoral.pessoas WHERE id=$1 AND ativo", [input.pessoaId]);
+      if (!pessoa.rowCount) throw new DomainError("PESSOA_NAO_ENCONTRADA", "Pessoa não encontrada");
+      const arquivo = await client.query<{ id: string }>(
+        "INSERT INTO pastoral.arquivos(storage_key,nome_original,mime_type,tamanho_bytes) VALUES($1,$2,$3,$4) RETURNING id::text",
+        [input.storageKey, input.nomeOriginal, input.mimeType, input.tamanhoBytes],
+      );
+      const arquivoId = arquivo.rows[0]?.id;
+      if (!arquivoId) throw new Error("Falha ao registrar arquivo");
+      await client.query(
+        "UPDATE pastoral.pessoas_arquivos SET principal=false WHERE pessoa_id=$1 AND tipo='FOTO_PERFIL' AND principal",
+        [input.pessoaId],
+      );
+      await client.query(
+        "INSERT INTO pastoral.pessoas_arquivos(pessoa_id,arquivo_id,tipo,principal,usuario_cadastro_id) VALUES($1,$2,'FOTO_PERFIL',true,$3)",
+        [input.pessoaId, arquivoId, input.usuarioId],
+      );
+      await client.query(
+        "INSERT INTO pastoral.auditoria(usuario_id,entidade,entidade_id,operacao,estado_novo) VALUES($1,'PESSOA',$2,'FOTO_ATUALIZADA',jsonb_build_object('arquivoId',$3::text))",
+        [input.usuarioId, input.pessoaId, arquivoId],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async obterFotoPrincipal(pessoaId: string): Promise<FotoPessoa | null> {
+    const row = (await this.pool.query<{ storage_key: string; mime_type: string }>(
+      `SELECT a.storage_key,a.mime_type FROM pastoral.pessoas_arquivos pa
+       JOIN pastoral.arquivos a ON a.id=pa.arquivo_id
+       WHERE pa.pessoa_id=$1 AND pa.tipo='FOTO_PERFIL' AND pa.principal LIMIT 1`,
+      [pessoaId],
+    )).rows[0];
+    return row ? { storageKey: row.storage_key, mimeType: row.mime_type } : null;
   }
 
   private async ensureDocumentsAvailable(client: PoolClient, documents: CriarPessoaInput["documentos"]) {

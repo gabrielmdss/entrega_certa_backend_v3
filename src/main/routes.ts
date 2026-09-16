@@ -31,7 +31,7 @@ import {
 } from "../presentation/http/historicos/historicos.routes.js";
 export function createRoutes() {
   const r = Router();
-  r.use("/api/v1/pessoas", createPessoasRouter(dependencies.pessoasController, dependencies.authentication));
+  r.use("/api/v1/pessoas", createPessoasRouter(dependencies.pessoasController, dependencies.authentication, dependencies.uploadFotoMiddleware));
   r.use("/api/v1", createCatalogosAssistenciaRouter(dependencies.catalogosAssistenciaController, dependencies.authentication));
   r.use(
     "/api/v1/auth",

@@ -1,8 +1,12 @@
+import { createReadStream } from "node:fs";
+import { join } from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import type {
   BuscarPessoasUseCase,
   CriarPessoaUseCase,
+  ObterFotoPessoaUseCase,
   ObterPessoaUseCase,
+  UploadFotoPessoaUseCase,
 } from "../../../application/pessoas/use-cases/pessoas.use-cases.js";
 import {
   buscarPessoasSchema,
@@ -15,6 +19,9 @@ export class PessoasController {
     private readonly buscarPessoas: BuscarPessoasUseCase,
     private readonly criarPessoa: CriarPessoaUseCase,
     private readonly obterPessoa: ObterPessoaUseCase,
+    private readonly uploadFoto: UploadFotoPessoaUseCase,
+    private readonly obterFoto: ObterFotoPessoaUseCase,
+    private readonly storagePath: string,
   ) {}
 
   buscar = async (req: Request, res: Response, next: NextFunction) => {
@@ -49,6 +56,33 @@ export class PessoasController {
           pessoaIdSchema.parse(req.params).id,
         ),
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+  enviarFoto = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = pessoaIdSchema.parse(req.params);
+      const file = req.file as Express.Multer.File;
+      await this.uploadFoto.execute({
+        pessoaId: id,
+        storageKey: `pessoas/${file.filename}`,
+        nomeOriginal: file.originalname || null,
+        mimeType: file.mimetype,
+        tamanhoBytes: file.size,
+        usuarioId: res.locals.user.id,
+      });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+  obterFotoArquivo = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = pessoaIdSchema.parse(req.params);
+      const foto = await this.obterFoto.execute(id);
+      res.setHeader("Content-Type", foto.mimeType);
+      createReadStream(join(this.storagePath, foto.storageKey)).pipe(res);
     } catch (error) {
       next(error);
     }
