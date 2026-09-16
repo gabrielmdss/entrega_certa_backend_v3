@@ -9,6 +9,7 @@ import { BcryptPasswordHasher } from "../infrastructure/auth/bcrypt-password-has
 import { PostgresAuthQuery } from "../infrastructure/database/postgres/auth/postgres-auth-query.js";
 import { LoginUseCase } from "../application/auth/use-cases/login.use-case.js";
 import { GetCurrentUserUseCase } from "../application/auth/use-cases/get-current-user.use-case.js";
+import { AlterarSenhaUseCase } from "../application/auth/use-cases/alterar-senha.use-case.js";
 import { AuthController } from "../presentation/http/auth/auth.controller.js";
 import { authenticate } from "../presentation/http/middlewares/authentication.middleware.js";
 import { PostgresBeneficiarioQuery } from "../infrastructure/database/postgres/beneficiarios/postgres-beneficiario-query.js";
@@ -118,6 +119,7 @@ const authQuery = new PostgresAuthQuery(postgresPool);
 const authController = new AuthController(
   new LoginUseCase(authQuery, passwordHasher, tokenService),
   new GetCurrentUserUseCase(authQuery),
+  new AlterarSenhaUseCase(authQuery, passwordHasher),
 );
 const authentication = authenticate(tokenService, authQuery);
 const beneficiaryQuery = new PostgresBeneficiarioQuery(postgresPool);
