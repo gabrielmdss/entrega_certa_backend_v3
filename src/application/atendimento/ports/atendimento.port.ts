@@ -1,0 +1,4 @@
+export interface PendenciaAtendimento{codigo:string;competencia?:string;grupoEsperado?:string;}
+export type SituacaoOperacionalCheckIn='AGUARDANDO'|'ATENDIDO'|'NAO_ATENDIDO_ESTOQUE'|'NAO_ATENDIDO_IRREGULARIDADE';
+export interface CheckInOutput{id:string;beneficiario:{id:string;nomeCompleto:string};classificacao:'REGULAR'|'PENDENTE';fila:'PRINCIPAL'|'SECUNDARIA';situacaoOperacional:SituacaoOperacionalCheckIn;podeRetirar:boolean;motivoBloqueio:string|null;pendencias:PendenciaAtendimento[];ocorridoEm:string;}
+export interface AtendimentoPort{registrarCheckIn(i:{distribuicaoId:string;beneficiarioId:string;usuarioId:string}):Promise<CheckInOutput>;listarCheckIns(i:{distribuicaoId:string;classificacao?:'REGULAR'|'PENDENTE';situacao?:SituacaoOperacionalCheckIn}):Promise<CheckInOutput[]>;buscarBeneficiarios(f:{nome?:string;documento?:string;status?:string;grupoId?:string}):Promise<unknown[]>;}

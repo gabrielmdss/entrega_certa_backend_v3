@@ -1,0 +1,4072 @@
+{
+  "info": {
+    "_postman_id": "8e49c5d4-8a24-4f82-a188-0e1f590d33ec",
+    "name": "Pastoral API - Completa",
+    "description": "Coleção manual baseada nas rotas e regras reais da API. Requests mutáveis usam fixtures prefixadas e runId.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if(!pm.environment.get(\"runId\")){pm.environment.set(\"runId\",Date.now().toString());}",
+          "const runId=pm.environment.get(\"runId\");pm.environment.set(\"nomePessoaTeste\",`POSTMAN TESTE - BENEFICIARIO ${runId}`);pm.environment.set(\"nomeInsumoTeste\",`Arroz Teste Postman ${runId}`);pm.environment.set(\"nomeDoadorTeste\",`Doador Postman ${runId}`);pm.environment.set(\"nomeModeloTeste\",`Modelo Postman ${runId}`);"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Health",
+      "description": "Módulo 00 - Health. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{host}}/health",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Processo saudável\",()=>pm.expect(pm.response.json().status).to.equal(\"ok\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{host}}/ready",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Dependências prontas\",()=>pm.expect(pm.response.json().status).to.equal(\"ready\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OpenAPI JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{host}}/openapi.json",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Contrato OpenAPI\",()=>pm.expect(pm.response.json().openapi).to.equal(\"3.1.0\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{host}}/docs/",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"HTML Swagger\",()=>pm.expect(pm.response.text()).to.include(\"Swagger UI\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Auth",
+      "description": "Módulo 01 - Auth. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{adminLogin}}\",\n  \"senha\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json=pm.response.json();if(json.data?.accessToken){pm.environment.set(\"adminToken\",json.data.accessToken);pm.environment.set(\"accessToken\",json.data.accessToken);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Atendimento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{atendimentoLogin}}\",\n  \"senha\": \"{{atendimentoPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json=pm.response.json();if(json.data?.accessToken){pm.environment.set(\"atendimentoToken\",json.data.accessToken);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Estoque",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{estoqueLogin}}\",\n  \"senha\": \"{{estoquePassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json=pm.response.json();if(json.data?.accessToken){pm.environment.set(\"estoqueToken\",json.data.accessToken);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Responsável",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{responsavelLogin}}\",\n  \"senha\": \"{{responsavelPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json=pm.response.json();if(json.data?.accessToken){pm.environment.set(\"responsavelToken\",json.data.accessToken);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Capacidade",
+      "description": "Módulo 02 - Capacidade. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Obter Capacidade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/capacidade",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.capacidade!==undefined)pm.environment.set(\"capacidadeOriginal\",String(j.data.capacidade));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ALTERA ESTADO GLOBAL] Alterar Capacidade Temporariamente",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/capacidade",
+            "description": "Execute somente seguido da restauração.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacidade\": 301,\n  \"justificativa\": \"Teste temporário da coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[ALTERA ESTADO GLOBAL] Restaurar Capacidade",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/capacidade",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacidade\": \"{{capacidadeOriginal}}\",\n  \"justificativa\": \"Restauração automática após teste Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const raw=pm.environment.get(\"capacidadeOriginal\");if(!raw)throw new Error(\"Execute Obter Capacidade primeiro\");pm.request.body.raw=JSON.stringify({capacidade:Number(raw),justificativa:\"Restauração automática após teste Postman\"});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Beneficiários",
+      "description": "Módulo 04 - Beneficiários. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Listar Beneficiários",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(!pm.environment.get(\"beneficiarioId\")&&j.data?.[0]?.id)pm.environment.set(\"beneficiarioId\",j.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar por Nome",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios?nome={{nomePessoaTeste}}",
+            "description": "Depende das variáveis nomePessoaTeste. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar por Documento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios?documento={{documentoTeste}}",
+            "description": "Depende das variáveis documentoTeste. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Beneficiário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admitir Beneficiário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/beneficiarios",
+            "description": "Requer pessoaId existente ainda não beneficiário; a API atual não cria pessoas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": \"{{pessoaId}}\",\n  \"grupoId\": \"{{grupoAId}}\",\n  \"autorizarAcimaCapacidade\": false,\n  \"justificativaExcecao\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"beneficiarioId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alterar Grupo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/alterar-grupo",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grupoDestinoId\": \"{{grupoBId}}\",\n  \"vigenciaCompetenciaAtual\": true,\n  \"motivo\": \"Alteração controlada pela coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Desligar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/desligar",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivoId\": \"{{motivoDesligamentoId}}\",\n  \"observacao\": \"Desligamento controlado pela coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reativar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/reativar",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Histórico do Beneficiário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/historico",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();const a=j.data?.eventos?.find(e=>e.tipo===\"AUSENCIA\");if(a?.detalhes?.ausenciaId)pm.environment.set(\"ausenciaId\",a.detalhes.ausenciaId);",
+                  "const h=j.data?.eventos?.find(e=>e.tipo===\"JUSTIFICATIVA\");if(h?.detalhes?.justificativaId)pm.environment.set(\"justificativaId\",h.detalhes.justificativaId);",
+                  "pm.test(\"Justificativas expõem ID persistido\",()=>j.data?.eventos?.filter(e=>e.tipo===\"JUSTIFICATIVA\").forEach(e=>pm.expect(e.detalhes.justificativaId).to.be.a(\"string\")));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Histórico com justificativa persistida",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/beneficiarios/{{beneficiarioId}}/historico"
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"data\": {\n    \"beneficiario\": { \"id\": \"1\", \"nome\": \"Maria\" },\n    \"eventos\": [{\n      \"tipo\": \"JUSTIFICATIVA\",\n      \"ocorridoEm\": \"2026-09-04T14:00:00.000Z\",\n      \"detalhes\": { \"justificativaId\": \"9\", \"ausenciaId\": \"8\", \"decisao\": \"PENDENTE\", \"momento\": \"DEPOIS_DISTRIBUICAO\" }\n    }]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Candidaturas",
+      "description": "Módulo 05 - Candidaturas. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Criar Candidatura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/candidaturas",
+            "description": "Requer outra pessoa existente e elegível.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": \"{{candidaturaPessoaId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"candidaturaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Candidaturas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/candidaturas?status=AGUARDANDO",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Priorizar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/candidaturas/{{candidaturaId}}/priorizar",
+            "description": "Depende das variáveis candidaturaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"justificativa\": \"Prioridade controlada para validação Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar Tentativa de Contato",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/candidaturas/{{candidaturaId}}/tentativas-contato",
+            "description": "Depende das variáveis candidaturaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resultado\": \"CONTATO_REALIZADO\",\n  \"observacao\": \"Contato sintético Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Marcar Não Localizado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/candidaturas/{{candidaturaId}}/nao-localizado",
+            "description": "Depende das variáveis candidaturaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admitir Candidatura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/candidaturas/{{candidaturaId}}/admitir",
+            "description": "Depende das variáveis candidaturaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grupoId\": \"{{grupoAId}}\",\n  \"autorizarAcimaCapacidade\": false,\n  \"justificativaExcecao\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.beneficiarioId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"beneficiarioId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Competências",
+      "description": "Módulo 06 - Competências. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Listar Competências",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/competencias",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gerar Competência",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/competencias/gerar",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ano\": \"{{competenciaAnoTeste}}\",\n  \"mes\": \"{{competenciaMesTeste}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.body.raw=JSON.stringify({ano:Number(pm.environment.get(\"competenciaAnoTeste\")),mes:Number(pm.environment.get(\"competenciaMesTeste\"))});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"competenciaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Competência",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/competencias/{{competenciaId}}",
+            "description": "Depende das variáveis competenciaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - Distribuições",
+      "description": "Módulo 07 - Distribuições. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Listar Distribuições",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes?competenciaId={{competenciaId}}",
+            "description": "Depende das variáveis competenciaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();const a=j.data?.find(x=>x.grupo?.codigo===\"GRUPO_A\")??j.data?.[0];if(a)pm.environment.set(\"distribuicaoId\",a.id);const b=j.data?.find(x=>x.grupo?.codigo===\"GRUPO_B\");if(b)pm.environment.set(\"distribuicaoGrupoBId\",b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Distribuição",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remarcar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/remarcar",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"novaData\": \"{{dataDistribuicaoTeste}}\",\n  \"motivo\": \"Remarcação controlada Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/abrir",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encerrar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/encerrar",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Histórico da Distribuição",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/historico",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 - Atendimento",
+      "description": "Módulo 08 - Atendimento. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Registrar Check-in Regular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"checkInId\", String(captured));",
+                  "pm.test(\"Check-in classificado\",()=>pm.expect([\"REGULAR\",\"PENDENTE\"]).to.include(pm.response.json().data?.classificacao));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar Check-in Pendente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioPendenteId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "pm.test(\"Pendente\",()=>pm.expect(pm.response.json().data?.classificacao).to.equal(\"PENDENTE\"));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Todos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Regulares",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=REGULAR",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"Somente regulares\", () => pm.response.json().data.forEach((item) => pm.expect(item.classificacao).to.equal(\"REGULAR\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Pendentes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=PENDENTE",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const data = pm.response.json().data;",
+                  "pm.test(\"Contrato operacional do check-in\", () => {",
+                  "  const rows = Array.isArray(data) ? data : [data];",
+                  "  rows.forEach((item) => {",
+                  "    pm.expect([\"AGUARDANDO\",\"ATENDIDO\",\"NAO_ATENDIDO_ESTOQUE\",\"NAO_ATENDIDO_IRREGULARIDADE\"]).to.include(item.situacaoOperacional);",
+                  "    pm.expect(item.podeRetirar).to.be.a(\"boolean\");",
+                  "    pm.expect(item).to.have.property(\"motivoBloqueio\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"Somente pendentes\", () => pm.response.json().data.forEach((item) => pm.expect(item.classificacao).to.equal(\"PENDENTE\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 - Justificativas",
+      "description": "Módulo 09 - Justificativas. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Registrar Justificativa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/ausencias/{{ausenciaId}}/justificativas",
+            "description": "Depende das variáveis ausenciaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Justificativa sintética registrada pelo Postman\",\n  \"momento\": \"DEPOIS_DISTRIBUICAO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"justificativaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Avaliar como ACEITA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/justificativas/{{justificativaId}}/avaliar",
+            "description": "Depende das variáveis justificativaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"ACEITA\",\n  \"observacao\": \"Avaliação controlada Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] Avaliar Novamente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/justificativas/{{justificativaId}}/avaliar",
+            "description": "Depende das variáveis justificativaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decisao\": \"ACEITA\",\n  \"observacao\": \"Segunda avaliação inválida\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"Conflito\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 - Retiradas",
+      "description": "Módulo 10 - Retiradas. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Registrar Retirada Titular",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaId\", String(captured));",
+                  "pm.test(\"Retirada válida criada\", () => pm.expect(pm.response.json().data?.id).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar Check-in ATENDIDO",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=REGULAR"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Retirada válida torna ATENDIDO\", () => {",
+                  "  const item = pm.response.json().data.find((x) => x.beneficiario.id === pm.environment.get(\"beneficiarioId\"));",
+                  "  pm.expect(item.situacaoOperacional).to.equal(\"ATENDIDO\");",
+                  "  pm.expect(item.podeRetirar).to.equal(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar Retirada por Representante",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioRepresentanteId}}\",\n  \"tipo\": \"REPRESENTANTE\",\n  \"formaIdentificacao\": \"REPRESENTANTE\",\n  \"representante\": {\n    \"nome\": \"João da Silva Postman\",\n    \"documento\": \"123456789\",\n    \"relacao\": \"VIZINHO\",\n    \"autorizacaoDeclaratoria\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaRepresentanteId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Retiradas da Distribuição",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Retirada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/retiradas/{{retiradaId}}",
+            "description": "Depende das variáveis retiradaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estornar Retirada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/retiradas/{{retiradaId}}/estornar",
+            "description": "Depende das variáveis retiradaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Estorno controlado pela coleção Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar retorno após estorno",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins?classificacao=REGULAR"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Estorno devolve à espera\", () => {",
+                  "  const item = pm.response.json().data.find((x) => x.beneficiario.id === pm.environment.get(\"beneficiarioId\"));",
+                  "  pm.expect(item.situacaoOperacional).to.equal(\"AGUARDANDO\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] REGULARES_AGUARDANDO",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioPendenteId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Fila secundária bloqueada por regular apto\", () => {",
+                  "  pm.expect(pm.response.code).to.equal(409);",
+                  "  pm.expect(pm.response.json().error.code).to.equal(\"REGULARES_AGUARDANDO\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] DIREITO_NAO_DISPONIVEL nesta distribuição",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioOutraDistribuicaoId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Direito previsto para outra distribuição\", () => {",
+                  "  pm.expect(pm.response.code).to.equal(409);",
+                  "  pm.expect(pm.response.json().error.code).to.equal(\"DIREITO_NAO_DISPONIVEL\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10A - Cestas Adicionais",
+      "description": "Autoriza, lista e entrega cestas adicionais usando as regras persistidas no backend e no PostgreSQL.",
+      "item": [
+        {
+          "name": "Autorizar Cesta Adicional",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/cestas-adicionais",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"modeloCestaId\": \"{{modeloCestaId}}\",\n  \"quantidade\": 1,\n  \"justificativa\": \"Necessidade adicional autorizada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Autorização criada\",()=>pm.response.to.have.status(201));",
+                  "const data=pm.response.json().data; pm.environment.set(\"cestaAdicionalId\",data.id);",
+                  "pm.test(\"Estado AUTORIZADA\",()=>pm.expect(data.status).to.equal(\"AUTORIZADA\"));",
+                  "pm.test(\"Contrato explícito\",()=>{pm.expect(data.quantidade).to.equal(1);pm.expect(data.entrega).to.equal(null);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Cestas Adicionais",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/cestas-adicionais"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Lista autorizações\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Estados válidos\",()=>pm.response.json().data.forEach((item)=>pm.expect([\"AUTORIZADA\",\"ENTREGUE\",\"CANCELADA\"]).to.include(item.status)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entregar Cesta Adicional",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/cestas-adicionais/{{cestaAdicionalId}}/entregar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Entrega realizada\",()=>pm.response.to.have.status(200));",
+                  "pm.test(\"Estado ENTREGUE\",()=>{const data=pm.response.json().data;pm.expect(data.status).to.equal(\"ENTREGUE\");pm.expect(data.entrega).to.be.an(\"object\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[NEGATIVO] Entregar Novamente",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/cestas-adicionais/{{cestaAdicionalId}}/entregar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Transição inválida rejeitada\",()=>pm.response.to.have.status(409));",
+                  "pm.test(\"Código de domínio\",()=>pm.expect(pm.response.json().error.code).to.equal(\"CESTA_ADICIONAL_NAO_AUTORIZADA\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 - Estoque",
+      "description": "Módulo 11 - Estoque. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Listar Categorias de Prioridade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/categorias-prioridade",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.[0]?.id&&!pm.environment.get(\"categoriaPrioridadeId\"))pm.environment.set(\"categoriaPrioridadeId\",j.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Insumos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/insumos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Insumo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/insumos/{{apresentacaoInsumoId}}",
+            "description": "Depende das variáveis apresentacaoInsumoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastrar Insumo Fixture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/insumos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nomeInsumoTeste}}\",\n  \"categoriaPrioridadeId\": \"{{categoriaPrioridadeId}}\",\n  \"apresentacao\": {\n    \"descricao\": \"Pacote Postman 1 kg\",\n    \"quantidadeReferencia\": 1,\n    \"unidadeMedida\": \"kg\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"insumoId\", String(captured));",
+                  "const json = pm.response.json();\nconst captured = json.data?.apresentacaoId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"apresentacaoInsumoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar Entrada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/entradas",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"DOACAO\",\n  \"doadorId\": \"{{doadorId}}\",\n  \"dataEntrada\": null,\n  \"observacao\": \"Entrada criada pela coleção Postman\",\n  \"itens\": [\n    {\n      \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n      \"quantidade\": 100,\n      \"validade\": \"2027-12-31\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"entradaEstoqueId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar Perda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/perdas",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n  \"quantidade\": 1,\n  \"motivoId\": \"{{motivoPerdaId}}\",\n  \"observacao\": \"Perda sintética Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"perdaEstoqueId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 - Doadores",
+      "description": "Módulo 12 - Doadores. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Criar Doador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/doadores",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"INSTITUICAO\",\n  \"nome\": \"{{nomeDoadorTeste}}\",\n  \"telefone\": \"71999990001\",\n  \"observacao\": \"Fixture Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"doadorId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Doadores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/doadores",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar Doador",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/doadores/{{doadorId}}",
+            "description": "Depende das variáveis doadorId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"INSTITUICAO\",\n  \"nome\": \"{{nomeDoadorTeste}} Atualizado\",\n  \"telefone\": \"71999990002\",\n  \"observacao\": \"Fixture atualizada\",\n  \"ativo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "13 - Inventários",
+      "description": "Módulo 13 - Inventários. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Criar Inventário",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/inventarios",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"inventarioId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Inventário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/inventarios/{{inventarioId}}",
+            "description": "Depende das variáveis inventarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();const item=j.data?.itens?.find(x=>String(x.apresentacaoId)===String(pm.environment.get(\"apresentacaoInsumoId\")));if(item)pm.environment.set(\"saldoInventarioAtual\",String(item.saldoFisico));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contar Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/inventarios/{{inventarioId}}/itens/{{apresentacaoInsumoId}}",
+            "description": "Depende das variáveis inventarioId, apresentacaoInsumoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"saldoFisico\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const saldo=Number(pm.environment.get(\"saldoInventarioAtual\")||99);pm.request.body.raw=JSON.stringify({saldoFisico:saldo});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Concluir Inventário",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/inventarios/{{inventarioId}}/concluir",
+            "description": "Depende das variáveis inventarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "14 - Modelos de Cesta",
+      "description": "Módulo 14 - Modelos de Cesta. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Listar Modelos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/cestas/modelos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Modelo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cestas/modelos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nomeModeloTeste}}\",\n  \"tipo\": \"REGULAR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"modeloCestaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Versão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cestas/modelos/{{modeloCestaId}}/versoes",
+            "description": "Depende das variáveis modeloCestaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metaItens\": 3,\n  \"itens\": [\n    {\n      \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n      \"quantidade\": 3\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"modeloCestaVersaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Modelo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/cestas/modelos/{{modeloCestaId}}",
+            "description": "Depende das variáveis modeloCestaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "15 - Planejamentos",
+      "description": "Módulo 15 - Planejamentos. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Simular Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/planejamentos/simular",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"competenciaId\": \"{{competenciaId}}\",\n  \"modeloCestaVersaoId\": \"{{modeloCestaVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();pm.environment.set(\"saldoAntesSimulacao\",JSON.stringify(j.data?.itens??[]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/planejamentos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"competenciaId\": \"{{competenciaId}}\",\n  \"modeloCestaVersaoId\": \"{{modeloCestaVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"planejamentoId\", String(captured));",
+                  "const json = pm.response.json();\nconst captured = json.data?.versaoId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"planejamentoVersaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Planejamentos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/planejamentos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Planejamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/planejamentos/{{planejamentoId}}",
+            "description": "Depende das variáveis planejamentoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aprovar Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/planejamentos/{{planejamentoId}}/aprovar",
+            "description": "Depende das variáveis planejamentoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Revisar Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/planejamentos/{{planejamentoId}}/revisoes",
+            "description": "Depende das variáveis planejamentoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 4,\n  \"modeloCestaVersaoId\": \"{{modeloCestaVersaoId}}\",\n  \"motivo\": \"Revisão controlada Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.versaoId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"planejamentoVersaoRevisaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "16 - Montagem",
+      "description": "Módulo 16 - Montagem. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Montar Cestas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/lotes-montagem",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planejamentoVersaoId\": \"{{planejamentoVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"loteMontagemId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Lotes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/lotes-montagem",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obter Lote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/lotes-montagem/{{loteMontagemId}}",
+            "description": "Depende das variáveis loteMontagemId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ajustar Lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/lotes-montagem/{{loteMontagemId}}/ajustes",
+            "description": "Depende das variáveis loteMontagemId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidadeCestasAfetadas\": 1,\n  \"motivo\": \"Ajuste sintético Postman\",\n  \"itens\": [\n    {\n      \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n      \"operacao\": \"REMOVER\",\n      \"quantidadePorCesta\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"ajusteLoteId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[EXECUTAR APÓS LIBERAÇÃO] Desmontar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/lotes-montagem/{{loteMontagemId}}/desmontar",
+            "description": "Depende das variáveis loteMontagemId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantidade\": 1,\n  \"motivo\": \"Desmontagem controlada Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "17 - Liberações",
+      "description": "Módulo 17 - Liberações. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Liberar Cestas para Distribuição",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/liberacoes-cestas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loteMontagemId\": \"{{loteMontagemId}}\",\n  \"quantidade\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"liberacaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Liberações",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/liberacoes-cestas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reforçar Distribuição",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/liberacoes-cestas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loteMontagemId\": \"{{loteMontagemId}}\",\n  \"quantidade\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"liberacaoReforcoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "18 - Dashboard",
+      "description": "Módulo 18 - Dashboard. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Obter Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/dashboard",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();pm.test(\"Dashboard possui beneficiários\",()=>pm.expect(j.data).to.have.property(\"beneficiarios\"));pm.test(\"Dashboard possui saúde e projeção\",()=>{pm.expect(j.data).to.have.property(\"saude\");pm.expect(j.data.projecaoTresMeses).to.be.an(\"array\");});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "19 - Relatórios",
+      "description": "Módulo 19 - Relatórios. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Distribuições - Página 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/relatorios/distribuicoes?page=1&limit=50",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Distribuições - Por Período",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/relatorios/distribuicoes?dataInicio={{relatorioDataInicio}}&dataFim={{relatorioDataFim}}&page=1&limit=50",
+            "description": "Depende das variáveis relatorioDataInicio, relatorioDataFim. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Beneficiários - Ativos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/relatorios/beneficiarios?status=ATIVO&page=1&limit=50",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Beneficiários - Por Grupo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/relatorios/beneficiarios?grupoId={{grupoAId}}&page=1&limit=50",
+            "description": "Depende das variáveis grupoAId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estoque - Período",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/relatorios/estoque?dataInicio={{relatorioDataInicio}}&dataFim={{relatorioDataFim}}&page=1&limit=50",
+            "description": "Depende das variáveis relatorioDataInicio, relatorioDataFim. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "20 - Auditoria",
+      "description": "Módulo 20 - Auditoria. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Auditoria - Página 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria?page=1&limit=50",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.[0]?.id)pm.environment.set(\"auditoriaId\",j.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria por Entidade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria?entidade=BENEFICIARIO&entidadeId={{beneficiarioId}}&page=1&limit=50",
+            "description": "Depende das variáveis beneficiarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria por Usuário",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria?usuarioId={{usuarioId}}&page=1&limit=50",
+            "description": "Depende das variáveis usuarioId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe da Auditoria",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria/{{auditoriaId}}",
+            "description": "Depende das variáveis auditoriaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "pm.test(\"Sem segredos\",()=>pm.expect(JSON.stringify(pm.response.json())).not.to.match(/senha_hash|password|JWT_SECRET|DB_PASSWORD/i));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "21 - Admin",
+      "description": "Módulo 21 - Admin. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Status Administrativo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/status",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "pm.test(\"Pool disponível\",()=>pm.expect(pm.response.json().data.database).to.have.property(\"pool\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "90 - Cenários Negativos",
+      "description": "Módulo 90 - Cenários Negativos. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Login Inválido → 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"usuario-inexistente\",\n  \"senha\": \"senha-invalida\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"401\",()=>pm.expect(pm.response.code).to.equal(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sem Token → 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"401\",()=>pm.expect(pm.response.code).to.equal(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sem Permissão → 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{atendimentoToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"403\",()=>pm.expect(pm.response.code).to.equal(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Beneficiário Inexistente → 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/beneficiarios/999999999999999999",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"404\",()=>pm.expect(pm.response.code).to.equal(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Candidatura Duplicada → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/candidaturas",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": \"{{candidaturaPessoaId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Abrir Distribuição Já Aberta → 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/abrir",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Check-in Duplicado → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retirada Duplicada → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retirada Sem Cesta → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoSemCestaId}}/retiradas",
+            "description": "Requer distribuição aberta e beneficiário configurados sem liberação.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioSemCestaId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Perda Acima do Saldo → 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/perdas",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n  \"quantidade\": 999999,\n  \"motivoId\": \"{{motivoPerdaId}}\",\n  \"observacao\": \"Cenário negativo Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Encerrar Distribuição Já Encerrada → 409",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoEncerradaId}}/encerrar",
+            "description": "Depende das variáveis distribuicaoEncerradaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([400,401,403,404,409,422]));",
+                  "pm.test(\"409\",()=>pm.expect(pm.response.code).to.equal(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "99 - Fluxos Completos",
+      "description": "Fluxo mutável, ordenado para Runner. Requer pessoaId elegível e IDs de catálogo configurados; não há cleanup por API.",
+      "item": [
+        {
+          "name": "01 Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{adminLogin}}\",\n  \"senha\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json=pm.response.json();if(json.data?.accessToken){pm.environment.set(\"adminToken\",json.data.accessToken);pm.environment.set(\"accessToken\",json.data.accessToken);}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Selecionar Categoria de Estoque",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/estoque/categorias-prioridade",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.[0]?.id)pm.environment.set(\"categoriaPrioridadeId\",j.data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Admitir Beneficiário Fixture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/beneficiarios",
+            "description": "Pré-requisito inevitável: pessoaId existente e elegível.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pessoaId\": \"{{pessoaId}}\",\n  \"grupoId\": \"{{grupoAId}}\",\n  \"autorizarAcimaCapacidade\": false,\n  \"justificativaExcecao\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"beneficiarioId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Gerar Competência",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/competencias/gerar",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ano\": 2195,\n  \"mes\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.body.raw=JSON.stringify({ano:Number(pm.environment.get(\"competenciaAnoTeste\")),mes:Number(pm.environment.get(\"competenciaMesTeste\"))});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"competenciaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Selecionar Distribuição Grupo A",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes?competenciaId={{competenciaId}}",
+            "description": "Depende das variáveis competenciaId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();const d=j.data.find(x=>x.grupo?.codigo===\"GRUPO_A\");if(!d)throw new Error(\"Distribuição Grupo A não encontrada\");pm.environment.set(\"distribuicaoId\",d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Criar Doador Fixture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/doadores",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"INSTITUICAO\",\n  \"nome\": \"{{nomeDoadorTeste}}\",\n  \"telefone\": null,\n  \"observacao\": \"Fluxo Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"doadorId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Criar Insumo Fixture",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/insumos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nomeInsumoTeste}}\",\n  \"categoriaPrioridadeId\": \"{{categoriaPrioridadeId}}\",\n  \"apresentacao\": {\n    \"descricao\": \"Pacote Postman 1 kg\",\n    \"quantidadeReferencia\": 1,\n    \"unidadeMedida\": \"kg\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"insumoId\", String(captured));",
+                  "const json = pm.response.json();\nconst captured = json.data?.apresentacaoId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"apresentacaoInsumoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Registrar Entrada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/entradas",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipo\": \"DOACAO\",\n  \"doadorId\": \"{{doadorId}}\",\n  \"observacao\": \"Fluxo completo Postman\",\n  \"itens\": [\n    {\n      \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n      \"quantidade\": 100,\n      \"validade\": \"2027-12-31\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 Criar Modelo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cestas/modelos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nomeModeloTeste}}\",\n  \"tipo\": \"REGULAR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"modeloCestaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Criar Versão do Modelo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cestas/modelos/{{modeloCestaId}}/versoes",
+            "description": "Depende das variáveis modeloCestaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metaItens\": 3,\n  \"itens\": [\n    {\n      \"apresentacaoInsumoId\": \"{{apresentacaoInsumoId}}\",\n      \"quantidade\": 3\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"modeloCestaVersaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Simular Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/planejamentos/simular",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"competenciaId\": \"{{competenciaId}}\",\n  \"modeloCestaVersaoId\": \"{{modeloCestaVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Criar Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/planejamentos",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"competenciaId\": \"{{competenciaId}}\",\n  \"modeloCestaVersaoId\": \"{{modeloCestaVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"planejamentoId\", String(captured));",
+                  "const json = pm.response.json();\nconst captured = json.data?.versaoId;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"planejamentoVersaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 Aprovar Planejamento",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/planejamentos/{{planejamentoId}}/aprovar",
+            "description": "Depende das variáveis planejamentoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Montar Cestas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/estoque/lotes-montagem",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planejamentoVersaoId\": \"{{planejamentoVersaoId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"loteMontagemId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Liberar Cestas",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/liberacoes-cestas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"loteMontagemId\": \"{{loteMontagemId}}\",\n  \"quantidade\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"liberacaoId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 Abrir Distribuição",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/abrir",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 Check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/check-ins",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"checkInId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 Retirada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Estorno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/retiradas/{{retiradaId}}/estornar",
+            "description": "Depende das variáveis retiradaId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Estorno do fluxo Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 Nova Retirada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/retiradas",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiarioId\": \"{{beneficiarioId}}\",\n  \"tipo\": \"TITULAR\",\n  \"formaIdentificacao\": \"DOCUMENTO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const json = pm.response.json();\nconst captured = json.data?.id;\nif (captured !== undefined && captured !== null && captured !== \"\") pm.environment.set(\"retiradaId\", String(captured));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "21 Encerrar Distribuição",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}/encerrar",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 Consultar Resumo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/distribuicoes/{{distribuicaoId}}",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/dashboard",
+            "description": "Request independente dentro deste módulo; usa autenticação herdada quando aplicável."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 Auditoria",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auditoria?entidade=DISTRIBUICAO&entidadeId={{distribuicaoId}}",
+            "description": "Depende das variáveis distribuicaoId. Elas são capturadas por requests anteriores ou configuradas no environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

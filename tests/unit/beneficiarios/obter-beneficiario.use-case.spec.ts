@@ -1,0 +1,4 @@
+import { describe, expect, it } from "vitest";
+import type { BeneficiarioQueryPort } from "../../../src/application/beneficiarios/ports/beneficiario-query.port.js";
+import { ObterBeneficiarioUseCase } from "../../../src/application/beneficiarios/use-cases/obter-beneficiario.use-case.js";
+describe("ObterBeneficiarioUseCase",()=>{it("retorna o read model operacional",async()=>{const detail={id:"1",status:"ATIVO",dataAdmissao:"2026-01-01",pessoa:{id:"2",nomeCompleto:"Maria",dataNascimento:null,telefone:null,fotoPrincipal:null,documentos:[{tipo:"CPF",numeroMascarado:"*********42"}],enderecoPrincipal:null},grupo:{id:"1",codigo:"GRUPO_A",nome:"Grupo A"},ultimaRetirada:null,direitoAtual:null,proximoDireito:null,pendenciasAtuais:[],historicoResumido:[]};const port:BeneficiarioQueryPort={obterDetalhe:async()=>detail};await expect(new ObterBeneficiarioUseCase(port).execute("1")).resolves.toEqual(detail);});});
