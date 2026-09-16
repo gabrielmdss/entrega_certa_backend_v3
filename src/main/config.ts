@@ -12,6 +12,7 @@ const envSchema = z.object({
   DB_USER: z.string().min(1),
   DB_PASSWORD: z.string(),
   DB_SCHEMA: z.string().default("pastoral"),
+  DB_SSL: z.coerce.boolean().default(false),
   DB_POOL_MAX: z.coerce.number().int().positive().default(10),
   DB_CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   DB_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
@@ -40,6 +41,7 @@ export type DatabaseConfig = {
   database: string;
   user: string;
   password: string;
+  ssl: boolean;
   poolMax: number;
   connectionTimeoutMs: number;
   idleTimeoutMs: number;
@@ -52,6 +54,7 @@ export const databaseConfig: DatabaseConfig = {
   database: env.DB_NAME,
   user: env.DB_USER,
   password: env.DB_PASSWORD,
+  ssl: env.DB_SSL,
   poolMax: env.DB_POOL_MAX,
   connectionTimeoutMs: env.DB_CONNECTION_TIMEOUT_MS,
   idleTimeoutMs: env.DB_IDLE_TIMEOUT_MS,

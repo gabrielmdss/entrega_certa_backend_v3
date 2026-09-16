@@ -7,6 +7,8 @@ const connection = {
   port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  ssl:
+    process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
 };
 const dbName = process.env.DB_NAME;
 if (!dbName) throw new Error("DB_NAME não configurado (.env)");
