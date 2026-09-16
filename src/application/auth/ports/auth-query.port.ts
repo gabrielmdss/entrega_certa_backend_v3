@@ -6,4 +6,6 @@ export interface AuthQueryPort {
   findByLogin(login: string): Promise<LoginUser | null>;
   findById(id: string): Promise<AuthenticatedUser | null>;
   registerLogin(id: string): Promise<void>;
+  getSenhaHash(id: string): Promise<string | null>;
+  atualizarSenha(id: string, senhaHash: string): Promise<void>;
 }

@@ -21,5 +21,12 @@ export class PostgresAuthQuery implements AuthQueryPort {
     const row=result.rows[0]; return row ? map(row) : null;
   }
   async registerLogin(id: string): Promise<void> { await this.db.query('UPDATE pastoral.usuarios SET ultimo_login_em=now(), atualizado_em=now() WHERE id=$1',[id]); }
+  async getSenhaHash(id: string): Promise<string | null> {
+    const result = await this.db.query<{ senha_hash: string }>('SELECT senha_hash FROM pastoral.usuarios WHERE id=$1 AND ativo', [id]);
+    return result.rows[0]?.senha_hash ?? null;
+  }
+  async atualizarSenha(id: string, senhaHash: string): Promise<void> {
+    await this.db.query('UPDATE pastoral.usuarios SET senha_hash=$2, atualizado_em=now() WHERE id=$1', [id, senhaHash]);
+  }
 }
 function map(row: UserRow): AuthenticatedUser { return { id:row.id, login:row.login, ativo:row.ativo, perfis:row.perfis, permissoes:row.permissoes }; }

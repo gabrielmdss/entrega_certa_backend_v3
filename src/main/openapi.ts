@@ -454,6 +454,22 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
       },
     },
+    "/api/v1/auth/senha": {
+      post: {
+        ...operation("Alterar a própria senha", null, {
+          status: 204,
+          request: {
+            type: "object",
+            required: ["senhaAtual", "novaSenha"],
+            properties: {
+              senhaAtual: { type: "string", format: "password" },
+              novaSenha: { type: "string", format: "password", minLength: 8 },
+            },
+          },
+        }),
+        security: [{ bearerAuth: [] }],
+      },
+    },
     "/api/v1/pessoas": {
       get: operation("Buscar pessoas", "BENEFICIARIO_VISUALIZAR", {
         parameters: [
