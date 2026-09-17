@@ -60,7 +60,7 @@ export class PostgresPessoa implements PessoaPort {
         if (!typeId) throw new DomainError("TIPO_DOCUMENTO_INVALIDO", `Tipo de documento inválido: ${document.tipo}`);
         await client.query("INSERT INTO pastoral.pessoas_documentos(pessoa_id,tipo_documento_id,numero,principal) VALUES($1,$2,$3,$4)", [id, typeId, document.numero, document.principal]);
       }
-      await client.query("INSERT INTO pastoral.auditoria(usuario_id,entidade,entidade_id,operacao,estado_novo) VALUES($1,'PESSOA',$2,'CRIACAO',jsonb_build_object('nomeCompleto',$3))", [input.usuarioId, id, input.nomeCompleto]);
+      await client.query("INSERT INTO pastoral.auditoria(usuario_id,entidade,entidade_id,operacao,estado_novo) VALUES($1,'PESSOA',$2,'CRIACAO',jsonb_build_object('nomeCompleto',$3::text))", [input.usuarioId, id, input.nomeCompleto]);
       await client.query("COMMIT");
       return { id };
     } catch (error) {
