@@ -38,21 +38,24 @@ export class PostgresAtendimento implements AtendimentoPort {
     }
     const r = await this.pool.query<{
       id: string;
+      pessoa_id: string;
       nome_completo: string;
       status: string;
       grupo_id: string | null;
       codigo: string | null;
       documentos: string[];
+      foto: { storageKey: string; mimeType: string | null } | null;
     }>(
-      `SELECT b.id::text,p.nome_completo,b.status,g.id::text grupo_id,g.codigo,COALESCE(array_agg(DISTINCT pd.numero) FILTER(WHERE pd.id IS NOT NULL),'{}') documentos FROM pastoral.beneficiarios b JOIN pastoral.pessoas p ON p.id=b.pessoa_id LEFT JOIN pastoral.grupos_distribuicao g ON g.id=b.grupo_distribuicao_id LEFT JOIN pastoral.pessoas_documentos pd ON pd.pessoa_id=p.id AND pd.ativo ${w.length ? `WHERE ${w.join(" AND ")}` : ""} GROUP BY b.id,p.nome_completo,p.nome_normalizado,b.status,g.id,g.codigo ORDER BY p.nome_normalizado,b.id LIMIT 50`,
+      `SELECT b.id::text,p.id::text pessoa_id,p.nome_completo,b.status,g.id::text grupo_id,g.codigo,COALESCE(array_agg(DISTINCT pd.numero) FILTER(WHERE pd.id IS NOT NULL),'{}') documentos,(SELECT jsonb_build_object('storageKey',a.storage_key,'mimeType',a.mime_type) FROM pastoral.pessoas_arquivos pa JOIN pastoral.arquivos a ON a.id=pa.arquivo_id WHERE pa.pessoa_id=p.id AND pa.tipo='FOTO_PERFIL' AND pa.principal LIMIT 1) foto FROM pastoral.beneficiarios b JOIN pastoral.pessoas p ON p.id=b.pessoa_id LEFT JOIN pastoral.grupos_distribuicao g ON g.id=b.grupo_distribuicao_id LEFT JOIN pastoral.pessoas_documentos pd ON pd.pessoa_id=p.id AND pd.ativo ${w.length ? `WHERE ${w.join(" AND ")}` : ""} GROUP BY b.id,p.id,p.nome_completo,p.nome_normalizado,b.status,g.id,g.codigo ORDER BY p.nome_normalizado,b.id LIMIT 50`,
       v,
     );
     return r.rows.map((x) => ({
       id: x.id,
+      pessoaId: x.pessoa_id,
       nomeCompleto: x.nome_completo,
       status: x.status,
       grupo: x.grupo_id ? { id: x.grupo_id, codigo: x.codigo } : null,
-      fotoPrincipal: null,
+      fotoPrincipal: x.foto,
       documentos: x.documentos.map((numero) => ({
         tipo: "DOCUMENTO",
         numeroMascarado: mask(numero),
