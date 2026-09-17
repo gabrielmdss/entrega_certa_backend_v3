@@ -502,6 +502,38 @@ export const openApiDocument = {
       "BENEFICIARIO_VISUALIZAR",
       { parameters: [id] },
     ),
+    "/api/v1/pessoas/{id}/foto": {
+      post: {
+        ...operation("Enviar foto de perfil da pessoa", "BENEFICIARIO_EDITAR", {
+          status: 204,
+          parameters: [id],
+          description: "multipart/form-data com o campo \"foto\" (JPEG, PNG ou WEBP, até 5MB).",
+        }),
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["foto"],
+                properties: { foto: { type: "string", format: "binary" } },
+              },
+            },
+          },
+        },
+      },
+      get: {
+        ...operation("Baixar foto de perfil da pessoa", "BENEFICIARIO_VISUALIZAR", {
+          parameters: [id],
+        }),
+        responses: {
+          "200": {
+            description: "Arquivo de imagem",
+            content: { "image/*": { schema: { type: "string", format: "binary" } } },
+          },
+        },
+      },
+    },
     "/api/v1/grupos-distribuicao": path(
       "get",
       "Listar grupos ativos",

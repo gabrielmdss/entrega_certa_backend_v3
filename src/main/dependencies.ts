@@ -14,8 +14,9 @@ import { AuthController } from "../presentation/http/auth/auth.controller.js";
 import { authenticate } from "../presentation/http/middlewares/authentication.middleware.js";
 import { PostgresBeneficiarioQuery } from "../infrastructure/database/postgres/beneficiarios/postgres-beneficiario-query.js";
 import { PostgresPessoa } from "../infrastructure/database/postgres/pessoas/postgres-pessoa.js";
-import { BuscarPessoasUseCase, CriarPessoaUseCase, ObterPessoaUseCase } from "../application/pessoas/use-cases/pessoas.use-cases.js";
+import { BuscarPessoasUseCase, CriarPessoaUseCase, ObterFotoPessoaUseCase, ObterPessoaUseCase, UploadFotoPessoaUseCase } from "../application/pessoas/use-cases/pessoas.use-cases.js";
 import { PessoasController } from "../presentation/http/pessoas/pessoas.controller.js";
+import { createUploadFotoMiddleware } from "../presentation/http/middlewares/upload-foto.middleware.js";
 import { PostgresCatalogosAssistencia } from "../infrastructure/database/postgres/beneficiarios/postgres-catalogos-assistencia.js";
 import { ListarGruposDistribuicaoUseCase, ListarMotivosDesligamentoUseCase } from "../application/beneficiarios/use-cases/listar-catalogos-assistencia.use-cases.js";
 import { CatalogosAssistenciaController } from "../presentation/http/beneficiarios/catalogos-assistencia.controller.js";
@@ -132,7 +133,15 @@ const beneficiariosController = new BeneficiariosController(
   new AlterarGrupoBeneficiarioUseCase(beneficiaryCommand),
 );
 const pessoaPort = new PostgresPessoa(postgresPool);
-const pessoasController = new PessoasController(new BuscarPessoasUseCase(pessoaPort), new CriarPessoaUseCase(pessoaPort), new ObterPessoaUseCase(pessoaPort));
+const pessoasController = new PessoasController(
+  new BuscarPessoasUseCase(pessoaPort),
+  new CriarPessoaUseCase(pessoaPort),
+  new ObterPessoaUseCase(pessoaPort),
+  new UploadFotoPessoaUseCase(pessoaPort),
+  new ObterFotoPessoaUseCase(pessoaPort),
+  env.FILES_STORAGE_PATH,
+);
+const uploadFotoMiddleware = createUploadFotoMiddleware(env.FILES_STORAGE_PATH);
 const catalogosPort = new PostgresCatalogosAssistencia(postgresPool);
 const catalogosAssistenciaController = new CatalogosAssistenciaController(new ListarGruposDistribuicaoUseCase(catalogosPort), new ListarMotivosDesligamentoUseCase(catalogosPort));
 const capacityPort = new PostgresCapacidade(postgresPool);
@@ -260,6 +269,7 @@ export const dependencies = {
   authentication,
   beneficiariosController,
   pessoasController,
+  uploadFotoMiddleware,
   catalogosAssistenciaController,
   capacidadeController,
   candidaturasController,

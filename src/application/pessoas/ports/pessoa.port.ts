@@ -23,8 +23,24 @@ export interface CriarPessoaInput {
   usuarioId: string;
 }
 
+export interface SalvarFotoPessoaInput {
+  pessoaId: string;
+  storageKey: string;
+  nomeOriginal: string | null;
+  mimeType: string;
+  tamanhoBytes: number;
+  usuarioId: string;
+}
+
+export interface FotoPessoa {
+  storageKey: string;
+  mimeType: string;
+}
+
 export interface PessoaPort {
   buscar(filters: { q?: string; documento?: string }): Promise<PessoaListItem[]>;
   obter(id: string): Promise<PessoaDetail | null>;
   criar(input: CriarPessoaInput): Promise<{ id: string }>;
+  salvarFotoPrincipal(input: SalvarFotoPessoaInput): Promise<void>;
+  obterFotoPrincipal(pessoaId: string): Promise<FotoPessoa | null>;
 }

@@ -14,7 +14,9 @@
     "test:integration": "vitest run tests/integration",
     "database:inspect": "node scripts/inspect-database.mjs --markdown docs/database-mapping.md",
     "database:setup": "node scripts/setup-database.mjs",
-    "users:seed": "node scripts/seed-usuarios.mjs"
+    "users:seed": "node scripts/seed-usuarios.mjs",
+    "database:seed-demo": "node scripts/seed-demo.mjs",
+    "database:clear-demo": "node scripts/clear-demo.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -23,6 +25,7 @@
     "express": "^5.1.0",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
     "pg": "^8.13.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
@@ -35,6 +38,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^7.2.1",
