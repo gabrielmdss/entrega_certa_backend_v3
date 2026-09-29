@@ -103,6 +103,9 @@ import { AuditoriaController } from "../presentation/http/auditoria/auditoria.co
 import { PostgresAdminStatus } from "../infrastructure/observability/postgres-admin-status.js";
 import { ObterStatusAdministrativoUseCase } from "../application/admin/use-cases/obter-status-administrativo.use-case.js";
 import { AdminController } from "../presentation/http/admin/admin.controller.js";
+import { PostgresUsuarios } from "../infrastructure/database/postgres/admin/postgres-usuarios.js";
+import { ListarPerfisUseCase } from "../application/admin/use-cases/listar-perfis.use-case.js";
+import { CriarUsuarioUseCase } from "../application/admin/use-cases/criar-usuario.use-case.js";
 import { PostgresHistoricosQuery } from "../infrastructure/database/postgres/historicos/postgres-historicos-query.js";
 import * as HU from "../application/historicos/use-cases/historicos.use-cases.js";
 import { HistoricosController } from "../presentation/http/historicos/historicos.controller.js";
@@ -251,8 +254,11 @@ const auditoriaController = new AuditoriaController(
   new AU.ListarAuditoriaUseCase(auditoriaQuery),
   new AU.ObterAuditoriaUseCase(auditoriaQuery),
 );
+const usuariosPort = new PostgresUsuarios(postgresPool);
 const adminController = new AdminController(
   new ObterStatusAdministrativoUseCase(new PostgresAdminStatus(postgresPool)),
+  new ListarPerfisUseCase(usuariosPort),
+  new CriarUsuarioUseCase(usuariosPort, passwordHasher),
 );
 const historicosQuery = new PostgresHistoricosQuery(postgresPool);
 const historicosController = new HistoricosController(
