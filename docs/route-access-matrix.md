@@ -89,6 +89,8 @@ Na coluna “com token”, `permitido → handler` significa que autenticação 
 | GET | `/api/v1/auditoria` | `AuditoriaController.listar` | JWT | `AUDITORIA_VISUALIZAR` | não | sim | `401` | permitido → handler / `403` |
 | GET | `/api/v1/auditoria/:id` | `AuditoriaController.obter` | JWT | `AUDITORIA_VISUALIZAR` | não | sim | `401` | permitido → handler / `403` |
 | GET | `/api/v1/admin/status` | `AdminController.status` | JWT | `PERFIL_GERENCIAR` | não | sim | `401` | permitido → handler / `403` |
+| GET | `/api/v1/admin/perfis` | `AdminController.listarPerfis` | JWT | `PERFIL_GERENCIAR` | não | sim | `401` | permitido → handler / `403` |
+| POST | `/api/v1/admin/usuarios` | `AdminController.criarUsuario` | JWT | `PERFIL_GERENCIAR` | não | sim | `401` | permitido → handler / `403` |
 
 ## Perfis de desenvolvimento observados
 

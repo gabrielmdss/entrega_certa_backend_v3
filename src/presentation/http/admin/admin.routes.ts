@@ -5,5 +5,7 @@ export function createAdminRouter(c: AdminController, a: RequestHandler) {
   const r = Router();
   r.use(a);
   r.get("/status", requirePermission("PERFIL_GERENCIAR"), c.status);
+  r.get("/perfis", requirePermission("PERFIL_GERENCIAR"), c.listarPerfis);
+  r.post("/usuarios", requirePermission("PERFIL_GERENCIAR"), c.criarUsuario);
   return r;
 }

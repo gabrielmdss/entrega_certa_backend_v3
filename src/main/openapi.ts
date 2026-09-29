@@ -1069,5 +1069,50 @@ export const openApiDocument = {
       "Status administrativo",
       "PERFIL_GERENCIAR",
     ),
+    "/api/v1/admin/perfis": path(
+      "get",
+      "Listar perfis disponíveis para atribuir a um usuário",
+      "PERFIL_GERENCIAR",
+      {
+        response: {
+          type: "object",
+          properties: {
+            data: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  codigo: { type: "string" },
+                  nome: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    ),
+    "/api/v1/admin/usuarios": path(
+      "post",
+      "Cadastrar usuário do sistema",
+      "PERFIL_GERENCIAR",
+      {
+        status: 201,
+        request: {
+          type: "object",
+          required: ["login", "senha", "perfilIds"],
+          properties: {
+            login: { type: "string", minLength: 3, maxLength: 100 },
+            senha: { type: "string", format: "password", minLength: 8 },
+            perfilIds: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 1,
+              description: "IDs de pastoral.perfis; ver GET /admin/perfis",
+            },
+          },
+        },
+      },
+    ),
   },
 } as const;

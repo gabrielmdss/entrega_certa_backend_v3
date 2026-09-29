@@ -3,7 +3,7 @@ import { BuscarPessoasUseCase,CriarPessoaUseCase,ObterPessoaUseCase } from "../.
 import type { PessoaPort } from "../../../src/application/pessoas/ports/pessoa.port.js";
 import { DomainError } from "../../../src/shared/errors/domain-error.js";
 const person={id:"20",nomeCompleto:"Maria da Silva",dataNascimento:"1960-01-10",telefone:null,documentos:[{tipo:"CPF",numeroMascarado:"*********42"}],beneficiario:{id:"8",status:"ATIVO"}};
-function port():PessoaPort{return{buscar:vi.fn().mockResolvedValue([person]),obter:vi.fn().mockResolvedValue(person),criar:vi.fn().mockResolvedValue({id:"20"})};}
+function port():PessoaPort{return{buscar:vi.fn().mockResolvedValue([person]),obter:vi.fn().mockResolvedValue(person),criar:vi.fn().mockResolvedValue({id:"20"}),salvarFotoPrincipal:vi.fn(),obterFotoPrincipal:vi.fn()};}
 describe("pessoas",()=>{
   it("busca por nome no port",async()=>{const p=port();await new BuscarPessoasUseCase(p).execute({q:"maria"});expect(p.buscar).toHaveBeenCalledWith({q:"maria"});});
   it("busca por documento no port sem expor o número",async()=>{const p=port();const result=await new BuscarPessoasUseCase(p).execute({documento:"123"});expect(p.buscar).toHaveBeenCalledWith({documento:"123"});expect(result[0]?.documentos[0]?.numeroMascarado).toBe("*********42");});
