@@ -1,6 +1,9 @@
 import { Router, type RequestHandler } from "express";
 import type { OperacoesAtendimentoController } from "./operacoes-atendimento.controller.js";
-import { requirePermission } from "../middlewares/require-permission.middleware.js";
+import {
+  requireAnyPermission,
+  requirePermission,
+} from "../middlewares/require-permission.middleware.js";
 export function createAusenciasRouter(
   c: OperacoesAtendimentoController,
   a: RequestHandler,
@@ -34,6 +37,13 @@ export function createRetiradasRouter(
   const r = Router();
   r.use(a);
   r.get("/:id", requirePermission("RETIRADA_REGISTRAR"), c.obterRetirada);
-  r.post("/:id/estornar", c.estornarRetirada);
+  r.post(
+    "/:id/estornar",
+    requireAnyPermission(
+      "RETIRADA_ESTORNAR_PROPRIA",
+      "RETIRADA_ESTORNAR_QUALQUER",
+    ),
+    c.estornarRetirada,
+  );
   return r;
 }
