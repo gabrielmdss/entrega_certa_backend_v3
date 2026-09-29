@@ -260,19 +260,14 @@ async function seedPlanejamentoEMontagem(api, competenciaId, modeloCestaVersaoId
     const r = await api("POST", "/api/v1/planejamentos", { competenciaId, modeloCestaVersaoId, quantidade });
     if (r.status !== 201) throw new Error(`Falha ao criar planejamento: ${JSON.stringify(r.json)}`);
     versaoId = r.json.data.versaoId;
-    status = "SIMULACAO";
-    if (status === "SIMULACAO") {
-      const ap = await api("POST", `/api/v1/planejamentos/${r.json.data.id}/aprovar`);
-      if (ap.status !== 204) throw new Error(`Falha ao aprovar planejamento: ${JSON.stringify(ap.json)}`);
-      status = "APROVADO";
-    }
+    const ap = await api("POST", `/api/v1/planejamentos/${r.json.data.id}/aprovar`);
+    if (ap.status !== 204) throw new Error(`Falha ao aprovar planejamento: ${JSON.stringify(ap.json)}`);
   } else if (status === "SIMULACAO") {
     const planejamentoId = (
       await pool.query("SELECT planejamento_cesta_id::text id FROM pastoral.planejamentos_cesta_versoes WHERE id=$1", [versaoId])
     ).rows[0].id;
     const ap = await api("POST", `/api/v1/planejamentos/${planejamentoId}/aprovar`);
     if (ap.status !== 204) throw new Error(`Falha ao aprovar planejamento: ${JSON.stringify(ap.json)}`);
-    status = "APROVADO";
   }
 
   let loteId = (await pool.query("SELECT id::text FROM pastoral.lotes_montagem WHERE planejamento_versao_id=$1", [versaoId])).rows[0]?.id;
