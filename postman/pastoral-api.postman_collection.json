@@ -22,7 +22,7 @@
         "type": "text/javascript",
         "exec": [
           "if(!pm.environment.get(\"runId\")){pm.environment.set(\"runId\",Date.now().toString());}",
-          "const runId=pm.environment.get(\"runId\");pm.environment.set(\"nomePessoaTeste\",`POSTMAN TESTE - BENEFICIARIO ${runId}`);pm.environment.set(\"nomeInsumoTeste\",`Arroz Teste Postman ${runId}`);pm.environment.set(\"nomeDoadorTeste\",`Doador Postman ${runId}`);pm.environment.set(\"nomeModeloTeste\",`Modelo Postman ${runId}`);"
+          "const runId=pm.environment.get(\"runId\");pm.environment.set(\"nomePessoaTeste\",`POSTMAN TESTE - BENEFICIARIO ${runId}`);pm.environment.set(\"nomeInsumoTeste\",`Arroz Teste Postman ${runId}`);pm.environment.set(\"nomeDoadorTeste\",`Doador Postman ${runId}`);pm.environment.set(\"nomeModeloTeste\",`Modelo Postman ${runId}`);pm.environment.set(\"loginUsuarioTeste\",`postman.usuario.${runId}`);"
         ]
       }
     }
@@ -310,6 +310,50 @@
               }
             }
           ]
+        },
+        {
+          "name": "Alterar Senha (Usuário Criado)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/senha",
+            "description": "Requer ter executado antes, em 21 - Admin: Criar Usuário e Login Usuário Criado (captura usuarioCriadoToken). Não altera senhas de admin/atendimento/estoque/responsável.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{usuarioCriadoToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senhaAtual\": \"{{senhaUsuarioTesteInicial}}\",\n  \"novaSenha\": \"{{senhaUsuarioTesteNova}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -412,6 +456,62 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,201,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Pessoas",
+      "description": "Módulo 03 - Pessoas. Execute login compatível antes dos requests autenticados; operações com variáveis dependem de IDs capturados ou configurados no environment.",
+      "item": [
+        {
+          "name": "Upload Foto",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/pessoas/{{pessoaId}}/foto",
+            "description": "Multipart com o campo \"foto\" (JPEG/PNG/WEBP, até 5MB). Selecione um arquivo local no campo antes de enviar — Postman não preenche isso automaticamente. Requer BENEFICIARIO_EDITAR.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "foto",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download Foto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/pessoas/{{pessoaId}}/foto",
+            "description": "Retorna o binário da imagem (200) ou 404 FOTO_NAO_ENCONTRADA se a pessoa ainda não tem foto cadastrada. Requer BENEFICIARIO_VISUALIZAR."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200,404]));"
                 ]
               }
             }
@@ -2965,6 +3065,103 @@
                   "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
                   "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
                   "pm.test(\"Pool disponível\",()=>pm.expect(pm.response.json().data.database).to.have.property(\"pool\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar Perfis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/admin/perfis",
+            "description": "Lista perfis ativos disponíveis para atribuir a um novo usuário."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.[0]?.id)pm.environment.set(\"perfilIdTeste\",String(j.data[0].id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar Usuário",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/admin/usuarios",
+            "description": "Requer perfilIdTeste capturado por Listar Perfis. Cria um usuário descartável para testes.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{loginUsuarioTeste}}\",\n  \"senha\": \"{{senhaUsuarioTesteInicial}}\",\n  \"perfilIds\": [\"{{perfilIdTeste}}\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.id)pm.environment.set(\"usuarioCriadoId\",String(j.data.id));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Usuário Criado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Autentica o usuário criado em 'Criar Usuário' para exercitar Alterar Senha (01 - Auth).",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{loginUsuarioTeste}}\",\n  \"senha\": \"{{senhaUsuarioTesteInicial}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status esperado\", () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "pm.test(\"Resposta possui data\", () => pm.expect(pm.response.json()).to.have.property(\"data\"));",
+                  "const j=pm.response.json();if(j.data?.accessToken)pm.environment.set(\"usuarioCriadoToken\",j.data.accessToken);"
                 ]
               }
             }
