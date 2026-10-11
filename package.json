@@ -15,6 +15,7 @@
     "database:inspect": "node scripts/inspect-database.mjs --markdown docs/database-mapping.md",
     "database:setup": "node scripts/setup-database.mjs",
     "users:seed": "node scripts/seed-usuarios.mjs",
+    "users:seed-demo": "node scripts/seed-usuario-demo.mjs",
     "database:seed-demo": "node scripts/seed-demo.mjs",
     "database:clear-demo": "node scripts/clear-demo.mjs"
   },
